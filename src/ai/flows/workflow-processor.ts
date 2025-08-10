@@ -126,20 +126,24 @@ const processWorkflowFlow = ai.defineFlow(
 
       for (const sourceNodeName of Object.keys(originalConnections)) {
         const translatedSource = translationMap.get(sourceNodeName) || sourceNodeName;
-        const connectionOutputs = originalConnections[sourceNodeName];
+        const sourceOutputs = originalConnections[sourceNodeName];
         
         updatedConnections[translatedSource] = {};
 
-        for (const outputName of Object.keys(connectionOutputs)) {
-            const destinations = connectionOutputs[outputName][0]; 
-            if (Array.isArray(destinations)) {
-                 updatedConnections[translatedSource][outputName] = [
-                    destinations.map((dest: any) => {
-                        const translatedDestNode = translationMap.get(dest.node) || dest.node;
-                        return { ...dest, node: translatedDestNode };
-                    })
-                ];
-            }
+        for (const outputName of Object.keys(sourceOutputs)) {
+          // Each output (e.g., 'main', 'done', 'loop') is an array of destination arrays.
+          const destinationGroups = sourceOutputs[outputName];
+          if (Array.isArray(destinationGroups)) {
+             updatedConnections[translatedSource][outputName] = destinationGroups.map((destGroup: any) => {
+                if (Array.isArray(destGroup)) {
+                    return destGroup.map((dest: any) => {
+                       const translatedDestNode = translationMap.get(dest.node) || dest.node;
+                       return { ...dest, node: translatedDestNode };
+                    });
+                }
+                return destGroup; // Should not happen based on n8n structure, but safe to keep.
+             });
+          }
         }
       }
       workflow.connections = updatedConnections;

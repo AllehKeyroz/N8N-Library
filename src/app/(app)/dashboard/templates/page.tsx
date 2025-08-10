@@ -15,7 +15,6 @@ import {
   Download,
   FileText,
 } from 'lucide-react';
-import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template } from '@/services/template-service';
 import { Button } from '@/components/ui/button';
@@ -38,6 +37,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -169,7 +169,7 @@ export default function TemplatesPage() {
       ) : templates.length === 0 ? (
         <div className="text-center col-span-full py-12">
           <p className="text-muted-foreground">
-            Nenhum template encontrado. Adicione um no painel de Admin!
+            Nenhum template encontrado. Clique em "Fazer Upload" para adicionar o primeiro!
           </p>
         </div>
       ) : (
@@ -177,19 +177,13 @@ export default function TemplatesPage() {
           {templates.map((template) => (
             <Card
               key={template.id}
-              className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+              className="flex flex-col hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => handleTemplateClick(template)}
             >
-              <Image
-                src={template.image}
-                width={600}
-                height={400}
-                alt={template.name}
-                className="w-full h-48 object-cover"
-                data-ai-hint={template.hint}
-              />
-              <CardHeader>
-                <CardTitle className="truncate">{template.name}</CardTitle>
+              <CardHeader className="flex-grow">
+                <CardTitle>{template.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {template.platforms.map((platform) => (
                     <span
@@ -200,9 +194,6 @@ export default function TemplatesPage() {
                     </span>
                   ))}
                 </div>
-              </CardHeader>
-              <CardContent>
-                {/* Description removed from card */}
               </CardContent>
             </Card>
           ))}
@@ -278,44 +269,46 @@ export default function TemplatesPage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
           {selectedTemplate && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-2xl">
                   {selectedTemplate.name}
                 </DialogTitle>
-                <DialogDescription className="pt-2">
-                  {selectedTemplate.description}
-                </DialogDescription>
               </DialogHeader>
-              <div className="py-4 space-y-4">
-                <div>
-                  <h3 className="font-semibold mb-2">Plataformas</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedTemplate.platforms.map((platform) => (
-                      <span
-                        key={platform}
-                        className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full"
-                      >
-                        {platform}
-                      </span>
-                    ))}
+              <ScrollArea className="flex-grow pr-6 -mr-6">
+                  <DialogDescription className="pt-2 text-base">
+                    {selectedTemplate.description}
+                  </DialogDescription>
+                  <div className="py-4 space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Plataformas</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedTemplate.platforms.map((platform) => (
+                          <span
+                            key={platform}
+                            className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full"
+                          >
+                            {platform}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <Accordion type="single" collapsible>
+                      <AccordionItem value="explanation">
+                        <AccordionTrigger>
+                          <FileText className="mr-2" />
+                          Explicação Técnica
+                        </AccordionTrigger>
+                        <AccordionContent className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
+                          {selectedTemplate.explanation}
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                   </div>
-                </div>
-                <Accordion type="single" collapsible>
-                  <AccordionItem value="explanation">
-                    <AccordionTrigger>
-                      <FileText className="mr-2" />
-                      Como funciona este workflow?
-                    </AccordionTrigger>
-                    <AccordionContent className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
-                      {selectedTemplate.explanation}
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div>
-              <DialogFooter>
+              </ScrollArea>
+              <DialogFooter className="pt-4 flex-shrink-0">
                 <Button
                   variant="outline"
                   onClick={() => setSelectedTemplate(null)}

@@ -1,14 +1,12 @@
 'use server';
 
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp, query, orderBy } from "firebase/firestore";
 import type { ProcessWorkflowOutput } from "@/ai/flows/workflow-types";
 
 export type Template = ProcessWorkflowOutput & {
   id: string;
   createdAt: any;
-  image: string;
-  hint: string;
 };
 
 export async function saveTemplate(templateData: ProcessWorkflowOutput): Promise<string> {
@@ -26,7 +24,8 @@ export async function saveTemplate(templateData: ProcessWorkflowOutput): Promise
 
 export async function getTemplates(): Promise<Template[]> {
   try {
-    const querySnapshot = await getDocs(collection(db, "templates"));
+    const q = query(collection(db, "templates"), orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
     const templates = querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -37,8 +36,6 @@ export async function getTemplates(): Promise<Template[]> {
         platforms: data.platforms,
         explanation: data.explanation,
         createdAt: data.createdAt,
-        image: `https://placehold.co/600x400.png`,
-        hint: data.platforms.slice(0, 2).join(' ')
       } as Template;
     });
     return templates;

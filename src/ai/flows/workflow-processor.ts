@@ -30,10 +30,10 @@ Analise o seguinte workflow:
 
 Tarefas:
 1.  **Nome:** Crie um nome curto, específico e objetivo para o workflow (máximo 50 caracteres). Evite termos genéricos como "Automação" ou "Workflow". Exemplo: "Sincronizar Pedidos do Stripe com Notion".
-2.  **Descrição:** Escreva uma descrição concisa e amigável para o usuário final, explicando o que o workflow faz.
+2.  **Descrição:** Escreva uma descrição concisa e de alto nível, focada no objetivo e no resultado final do workflow. Ideal para um usuário final entender o valor da automação.
 3.  **Categoria:** Classifique o workflow em uma categoria principal (ex: Marketing, Vendas, Produtividade, Finanças, RH, IT).
 4.  **Plataformas:** Identifique e liste as principais plataformas, aplicativos ou serviços que são integrados neste workflow (ex: "Notion", "Google Sheets", "Stripe", "Slack").
-5.  **Explicação:** Gere uma explicação técnica detalhada, em português, de como o workflow funciona. Descreva cada passo (nó), o que ele faz, e como os dados fluem através do processo. Esta explicação será usada como um bloco de notas ou documentação para outros desenvolvedores ou usuários avançados.
+5.  **Explicação:** Gere uma explicação técnica detalhada, em português, de como o workflow funciona. Descreva cada passo (nó), o que ele faz, e como os dados fluem através do processo. Esta explicação será usada como uma documentação técnica interna ou um "bloco de notas" para desenvolvedores.
 `,
 });
 

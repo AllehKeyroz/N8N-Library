@@ -13,6 +13,7 @@ import {
   Download,
   FileText,
   Trash2,
+  Tag,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
@@ -52,7 +53,7 @@ import { getPlatformIcon } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
-const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Outros", "Suporte"];
+const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Outros", "Suporte", "Finanças", "RH", "Produtividade"];
 
 
 export default function TemplatesPage() {
@@ -360,19 +361,30 @@ export default function TemplatesPage() {
                     {selectedTemplate.description}
                   </DialogDescription>
                   <div className="py-4 space-y-4">
-                    <div>
-                      <h3 className="font-semibold mb-2">Plataformas</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedTemplate.platforms.map((platform) => (
-                          <span
-                            key={platform}
-                            className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
-                          >
-                           {React.createElement(getPlatformIcon(platform), {className: "h-4 w-4"})}
-                            {platform}
-                          </span>
-                        ))}
-                      </div>
+                    <div className="flex items-center gap-4">
+                        <div>
+                          <h3 className="font-semibold mb-2">Plataformas</h3>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedTemplate.platforms.map((platform) => (
+                              <span
+                                key={platform}
+                                className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
+                              >
+                               {React.createElement(getPlatformIcon(platform), {className: "h-4 w-4"})}
+                                {platform}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                         <div>
+                            <h3 className="font-semibold mb-2">Categoria</h3>
+                             <span
+                                className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
+                              >
+                               <Tag className="h-4 w-4" />
+                                {selectedTemplate.category}
+                              </span>
+                          </div>
                     </div>
                     <Accordion type="single" collapsible>
                       <AccordionItem value="explanation">

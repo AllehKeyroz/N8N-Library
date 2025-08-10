@@ -77,7 +77,9 @@ const processWorkflowFlow = ai.defineFlow(
     // 1. Parse the workflow JSON
     let workflow;
     try {
-      workflow = JSON.parse(input.workflowJson);
+      // Clean the input string to remove potential BOM characters
+      const cleanedJson = input.workflowJson.trim().replace(/^\uFEFF/, '');
+      workflow = JSON.parse(cleanedJson);
     } catch (error) {
       console.error('Invalid workflow JSON:', error);
       throw new Error('O arquivo JSON do workflow fornecido é inválido.');

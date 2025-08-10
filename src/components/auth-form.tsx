@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { LockKeyhole, Mail, User, Phone } from "lucide-react";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,11 +26,13 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from "@/lib/firebase";
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }),
   whatsapp: z.string().min(10, { message: "Número de WhatsApp inválido." }),
   email: z.string().email({ message: "Endereço de e-mail inválido." }),
+  password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres." }),
 });
 
 const loginSchema = z.object({
@@ -47,6 +50,7 @@ export function AuthForm() {
       name: "",
       whatsapp: "",
       email: "",
+      password: "",
     },
   });
 
@@ -60,28 +64,44 @@ export function AuthForm() {
 
   async function onRegisterSubmit(values: z.infer<typeof registerSchema>) {
     setLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setLoading(false);
-    toast({
-      title: "Conta criada com sucesso!",
-      description: "Enviamos um código de verificação para o seu WhatsApp.",
-      variant: "default",
-    });
-    registerForm.reset();
+    try {
+      await createUserWithEmailAndPassword(auth, values.email, values.password);
+      toast({
+        title: "Conta criada com sucesso!",
+        description: "Você já pode fazer login.",
+        variant: "default",
+      });
+      registerForm.reset();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao criar conta",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function onLoginSubmit(values: z.infer<typeof loginSchema>) {
     setLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setLoading(false);
-    toast({
-      title: "Login realizado com sucesso!",
-      description: "Bem-vindo de volta!",
-      variant: "default",
-    });
-    loginForm.reset();
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      toast({
+        title: "Login realizado com sucesso!",
+        description: "Bem-vindo de volta!",
+        variant: "default",
+      });
+      loginForm.reset();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao fazer login",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -146,6 +166,22 @@ export function AuthForm() {
                         <div className="relative">
                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                            <Input type="email" placeholder="seu@email.com" {...field} className="pl-10" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={registerForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Senha</FormLabel>
+                      <FormControl>
+                         <div className="relative">
+                            <LockKeyhole className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input type="password" placeholder="Sua senha" {...field} className="pl-10" />
                         </div>
                       </FormControl>
                       <FormMessage />

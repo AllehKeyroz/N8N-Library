@@ -110,6 +110,60 @@ export default function TemplatesPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setUploadFiles(event.target.files);
   };
+  
+  const processFileWithRetry = async (file: File, maxRetries = 2, initialDelay = 30000) => {
+    let attempt = 0;
+    let currentDelay = initialDelay;
+
+    while (attempt <= maxRetries) {
+      try {
+        const fileContent = await file.text();
+        const aiResult = await processWorkflow({ workflowJson: fileContent });
+        const { translatedWorkflowJson, ...restOfAiResult } = aiResult;
+        
+        await saveTemplate({ ...restOfAiResult, workflowJson: translatedWorkflowJson });
+        
+        toast({
+          title: `Sucesso: "${file.name}"`,
+          description: `O workflow "${aiResult.name}" foi salvo.`,
+          variant: 'default',
+        });
+        
+        return; // Success, exit the loop
+      } catch (error: any) {
+        // Check if it's a rate limit error (429)
+        if (error.message && error.message.includes('429')) {
+          attempt++;
+          if (attempt <= maxRetries) {
+            toast({
+              title: `Limite de requisições atingido para "${file.name}"`,
+              description: `Tentando novamente em ${currentDelay / 1000} segundos... (tentativa ${attempt} de ${maxRetries})`,
+              variant: 'default',
+            });
+            await new Promise(resolve => setTimeout(resolve, currentDelay));
+            currentDelay *= 2; // Exponential backoff
+          } else {
+            console.error(`Error processing ${file.name} after ${maxRetries} retries:`, error);
+            toast({
+              title: `Erro Final em "${file.name}"`,
+              description: 'Não foi possível processar o arquivo após várias tentativas devido a limites de requisição.',
+              variant: 'destructive',
+            });
+          }
+        } else {
+          // It's a different error, fail immediately
+          console.error(`Error processing ${file.name}:`, error);
+          toast({
+            title: `Erro em "${file.name}"`,
+            description: error.message || 'Ocorreu um erro ao processar este arquivo.',
+            variant: 'destructive',
+          });
+          return; // Exit loop for non-retryable errors
+        }
+      }
+    }
+  };
+
 
   const handleUploadSubmit = async (
     event: React.FormEvent<HTMLFormElement>
@@ -138,36 +192,8 @@ export default function TemplatesPage() {
     // 2. Start processing loop without blocking UI
     (async () => {
       for (const file of filesToProcess) {
-        const originalFileName = file.name;
-        try {
-          const fileContent = await file.text();
-          
-          const aiResult = await processWorkflow({ workflowJson: fileContent });
-          const { translatedWorkflowJson, ...restOfAiResult } = aiResult;
-          
-          await saveTemplate({ ...restOfAiResult, workflowJson: translatedWorkflowJson });
-
-          toast({
-            title: `Sucesso: "${originalFileName}"`,
-            description: `O workflow "${aiResult.name}" foi salvo.`,
-            variant: 'default',
-          });
-
-          await loadTemplates(); // Refresh list after each success
-
-        } catch (error: any) {
-          console.error(`Error processing ${originalFileName}:`, error);
-          toast({
-            title: `Erro em "${originalFileName}"`,
-            description: error.message || 'Ocorreu um erro ao processar este arquivo.',
-            variant: 'destructive',
-          });
-        } finally {
-            // Wait for 5 seconds before processing the next file to avoid rate limiting
-            if (filesToProcess.length > 1) {
-              await new Promise(resolve => setTimeout(resolve, 5000));
-            }
-        }
+        await processFileWithRetry(file);
+        await loadTemplates(); // Refresh list after each attempt (success or final failure)
       }
 
       // 3. Reset the form state after loop finishes

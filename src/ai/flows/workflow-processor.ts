@@ -34,6 +34,7 @@ Tarefas:
 3.  **Categoria:** Classifique o workflow em uma categoria principal (ex: Marketing, Vendas, Produtividade, Finanças, RH, IT).
 4.  **Plataformas:** Identifique e liste as principais plataformas, aplicativos ou serviços que são integrados neste workflow (ex: "Notion", "Google Sheets", "Stripe", "Slack").
 5.  **Explicação:** Gere uma explicação técnica detalhada, em português, de como o workflow funciona. Descreva cada passo (nó), o que ele faz, e como os dados fluem através do processo. Esta explicação será usada como uma documentação técnica interna ou um "bloco de notas" para desenvolvedores.
+6.  **Tradução do Workflow:** Analise o JSON do workflow fornecido. Para cada objeto dentro do array "nodes", traduza o valor da chave "name" para o português do Brasil. Retorne o JSON completo com essas traduções no campo "translatedWorkflowJson". Mantenha a estrutura do JSON intacta.
 `,
 });
 

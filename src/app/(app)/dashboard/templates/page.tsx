@@ -108,7 +108,10 @@ export default function TemplatesPage() {
       const fileContent = await file.text();
 
       const aiResult = await processWorkflow({ workflowJson: fileContent });
-      await saveTemplate({ ...aiResult, workflowJson: fileContent });
+      
+      const { translatedWorkflowJson, ...restOfAiResult } = aiResult;
+      
+      await saveTemplate({ ...restOfAiResult, workflowJson: translatedWorkflowJson });
 
       toast({
         title: 'Template Salvo!',

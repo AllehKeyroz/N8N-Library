@@ -5,14 +5,14 @@ import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, where, do
 import type { ProcessWorkflowOutput } from "@/ai/flows/workflow-types";
 import { createHash } from 'crypto';
 
-export type Template = ProcessWorkflowOutput & {
+export type Template = Omit<ProcessWorkflowOutput, 'translatedWorkflowJson'> & {
   id: string;
-  createdAt: string; // Changed to string to be serializable
+  createdAt: string; 
   workflowHash: string;
   workflowJson: string;
 };
 
-export async function saveTemplate(templateData: ProcessWorkflowOutput & { workflowJson: string }): Promise<string> {
+export async function saveTemplate(templateData: Omit<ProcessWorkflowOutput, 'translatedWorkflowJson'> & { workflowJson: string }): Promise<string> {
   const { workflowJson, ...restData } = templateData;
   const workflowHash = createHash('sha256').update(workflowJson).digest('hex');
 

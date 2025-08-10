@@ -20,5 +20,6 @@ export const ProcessWorkflowOutputSchema = z.object({
   category: z.string().describe('A categoria principal do workflow (ex: Marketing, Vendas, Produtividade).'),
   platforms: z.array(z.string()).describe('Uma lista das principais plataformas ou aplicativos que o workflow integra (ex: Notion, Google Sheets, Slack).'),
   explanation: z.string().describe('Uma explicação detalhada, passo a passo, de como o workflow funciona, para ser usada como documentação interna.'),
+  translatedWorkflowJson: z.string().describe('O workflow JSON completo com os nomes dos nós traduzidos para o português.'),
 });
 export type ProcessWorkflowOutput = z.infer<typeof ProcessWorkflowOutputSchema>;

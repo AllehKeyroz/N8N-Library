@@ -121,23 +121,28 @@ const processWorkflowFlow = ai.defineFlow(
     
     // 4. Update connections BEFORE updating node names
     if (workflow.connections && typeof workflow.connections === 'object') {
-        const updatedConnections: Record<string, any> = {};
+      const originalConnections = JSON.parse(JSON.stringify(workflow.connections));
+      const updatedConnections: Record<string, any> = {};
 
-        for (const sourceNodeName of Object.keys(workflow.connections)) {
-            const translatedSource = translationMap.get(sourceNodeName) || sourceNodeName;
-            const connectionOutputs = workflow.connections[sourceNodeName];
-            
-            updatedConnections[translatedSource] = {};
+      for (const sourceNodeName of Object.keys(originalConnections)) {
+        const translatedSource = translationMap.get(sourceNodeName) || sourceNodeName;
+        const connectionOutputs = originalConnections[sourceNodeName];
+        
+        updatedConnections[translatedSource] = {};
 
-            for (const outputName of Object.keys(connectionOutputs)) {
-                const destinations = connectionOutputs[outputName];
-                updatedConnections[translatedSource][outputName] = destinations.map((dest: any) => {
-                     const translatedDestNode = translationMap.get(dest.node) || dest.node;
-                     return { ...dest, node: translatedDestNode };
-                });
+        for (const outputName of Object.keys(connectionOutputs)) {
+            const destinations = connectionOutputs[outputName][0]; // [0] is the key change here
+            if (Array.isArray(destinations)) {
+                 updatedConnections[translatedSource][outputName] = [
+                    destinations.map((dest: any) => {
+                        const translatedDestNode = translationMap.get(dest.node) || dest.node;
+                        return { ...dest, node: translatedDestNode };
+                    })
+                ];
             }
         }
-        workflow.connections = updatedConnections;
+      }
+      workflow.connections = updatedConnections;
     }
 
 

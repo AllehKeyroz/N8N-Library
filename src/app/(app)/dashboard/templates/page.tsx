@@ -52,7 +52,7 @@ import { getPlatformIcon } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
-const categories = ["AI", "Sales", "IT Ops", "Marketing", "Document Ops", "Other", "Support"];
+const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Outros", "Suporte"];
 
 
 export default function TemplatesPage() {
@@ -206,13 +206,13 @@ export default function TemplatesPage() {
     <div className="p-4 md:p-8">
       <header className="mb-8 text-center">
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
-          Workflow Automation Templates
+          Templates de Automação de Workflow
         </h1>
         <div className="max-w-xl mx-auto">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Search apps, roles, usecases..."
+              placeholder="Pesquisar apps, funções, casos de uso..."
               className="pl-12 text-base h-12 rounded-full bg-secondary"
             />
           </div>
@@ -227,7 +227,7 @@ export default function TemplatesPage() {
       </header>
       
       <div className="mb-8 flex items-center justify-between">
-         <h2 className="text-2xl font-semibold tracking-tight">Trending AI Templates</h2>
+         <h2 className="text-2xl font-semibold tracking-tight">Templates de IA em Destaque</h2>
         <Button onClick={() => setIsUploadDialogOpen(true)}>
           <UploadCloud className="mr-2" />
           Fazer Upload

@@ -31,7 +31,7 @@ Analise o seguinte workflow:
 Tarefas:
 1.  **Nome:** Crie um nome curto, específico e objetivo para o workflow (máximo 50 caracteres). Evite termos genéricos como "Automação" ou "Workflow". Exemplo: "Sincronizar Pedidos do Stripe com Notion".
 2.  **Descrição:** Escreva uma descrição concisa e de alto nível, focada no objetivo e no resultado final do workflow. Ideal para um usuário final entender o valor da automação.
-3.  **Categoria:** Classifique o workflow em uma categoria principal (ex: Marketing, Vendas, Produtividade, Finanças, RH, IT).
+3.  **Categoria:** Analise o workflow e o classifique em uma das seguintes categorias: [IA, Vendas, Operações de TI, Marketing, Operações de Documentos, Suporte, Finanças, RH, Produtividade]. Se nenhuma categoria se encaixar perfeitamente, crie uma nova categoria que seja específica e apropriada.
 4.  **Plataformas:** Identifique e liste as principais plataformas, aplicativos ou serviços que são integrados neste workflow (ex: "Notion", "Google Sheets", "Stripe", "Slack").
 5.  **Explicação:** Gere uma explicação técnica detalhada, em português, de como o workflow funciona. Descreva cada passo (nó), o que ele faz, e como os dados fluem através do processo. Esta explicação será usada como uma documentação técnica interna ou um "bloco de notas" para desenvolvedores.
 6.  **Tradução do Workflow:** Analise o JSON do workflow fornecido. Para cada objeto dentro do array "nodes", traduza o valor da chave "name" para o português do Brasil. Retorne o JSON completo com essas traduções no campo "translatedWorkflowJson". Mantenha a estrutura do JSON intacta.

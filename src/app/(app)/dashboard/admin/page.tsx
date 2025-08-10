@@ -8,11 +8,14 @@ import { Label } from '@/components/ui/label';
 import { UploadCloud, LoaderCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { processWorkflow } from '@/ai/flows/workflow-processor';
+import { saveTemplate } from '@/services/template-service';
+import { useRouter } from 'next/navigation';
 
 export default function AdminPage() {
   const [files, setFiles] = useState<FileList | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFiles(event.target.files);
@@ -35,19 +38,21 @@ export default function AdminPage() {
       
       const result = await processWorkflow({ workflowJson: fileContent });
 
-      console.log('AI Processing Result:', result);
+      await saveTemplate(result);
 
       toast({
-        title: 'Processamento Concluído!',
-        description: `O workflow "${result.name}" foi processado. Verifique o console para detalhes.`,
+        title: 'Template Salvo!',
+        description: `O workflow "${result.name}" foi processado e salvo com sucesso.`,
         variant: 'default',
       });
 
+      router.push('/dashboard/templates');
+
     } catch (error: any) {
-      console.error('Error processing workflow:', error);
+      console.error('Error processing or saving workflow:', error);
       toast({
         title: 'Erro no processamento',
-        description: error.message || 'Ocorreu um erro ao processar o workflow.',
+        description: error.message || 'Ocorreu um erro ao processar e salvar o workflow.',
         variant: 'destructive',
       });
     } finally {
@@ -97,7 +102,7 @@ export default function AdminPage() {
           </div>
           <Button size="lg" onClick={handleSubmit} disabled={loading || !files}>
             {loading ? <LoaderCircle className="mr-2 animate-spin" /> : <UploadCloud className="mr-2" />}
-            {loading ? 'Processando com IA...' : 'Processar com IA'}
+            {loading ? 'Processando e Salvando...' : 'Enviar para Biblioteca'}
           </Button>
         </CardContent>
       </Card>

@@ -21,7 +21,8 @@ export default function AdminPage() {
     setFiles(event.target.files);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); 
     if (!files || files.length === 0) {
       toast({
         title: 'Nenhum arquivo selecionado',
@@ -76,34 +77,36 @@ export default function AdminPage() {
             Selecione um arquivo JSON de workflow do n8n para a IA processar e adicionar à biblioteca.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="workflow-files">Arquivo de Workflow (.json)</Label>
-            <div className="relative border-2 border-dashed border-muted-foreground/50 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:border-primary transition-colors">
-              <UploadCloud className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="mb-2 text-sm text-muted-foreground">
-                <span className="font-semibold text-primary">Clique para fazer o upload</span> ou arraste e solte
-              </p>
-              <p className="text-xs text-muted-foreground">JSON (apenas um arquivo por vez)</p>
-              <Input 
-                id="workflow-files" 
-                type="file" 
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                accept=".json"
-                onChange={handleFileChange}
-                disabled={loading}
-              />
-            </div>
-             {files && files.length > 0 && (
-              <div className="text-sm text-muted-foreground pt-2">
-                Arquivo selecionado: {files[0].name}
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="workflow-files">Arquivo de Workflow (.json)</Label>
+              <div className="relative border-2 border-dashed border-muted-foreground/50 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:border-primary transition-colors">
+                <UploadCloud className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="mb-2 text-sm text-muted-foreground">
+                  <span className="font-semibold text-primary">Clique para fazer o upload</span> ou arraste e solte
+                </p>
+                <p className="text-xs text-muted-foreground">JSON (apenas um arquivo por vez)</p>
+                <Input 
+                  id="workflow-files" 
+                  type="file" 
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                  accept=".json"
+                  onChange={handleFileChange}
+                  disabled={loading}
+                />
               </div>
-            )}
-          </div>
-          <Button size="lg" onClick={handleSubmit} disabled={loading || !files}>
-            {loading ? <LoaderCircle className="mr-2 animate-spin" /> : <UploadCloud className="mr-2" />}
-            {loading ? 'Processando e Salvando...' : 'Enviar para Biblioteca'}
-          </Button>
+              {files && files.length > 0 && (
+                <div className="text-sm text-muted-foreground pt-2">
+                  Arquivo selecionado: {files[0].name}
+                </div>
+              )}
+            </div>
+            <Button type="submit" size="lg" disabled={loading || !files}>
+              {loading ? <LoaderCircle className="mr-2 animate-spin" /> : <UploadCloud className="mr-2" />}
+              {loading ? 'Processando e Salvando...' : 'Enviar para Biblioteca'}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

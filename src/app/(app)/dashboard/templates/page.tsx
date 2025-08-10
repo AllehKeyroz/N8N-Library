@@ -117,10 +117,13 @@ export default function TemplatesPage() {
       const file = uploadFiles[0];
       const fileContent = await file.text();
 
+      // The AI processes everything, including translation
       const aiResult = await processWorkflow({ workflowJson: fileContent });
       
+      // We get the translated JSON and the rest of the data
       const { translatedWorkflowJson, ...restOfAiResult } = aiResult;
       
+      // We save the template with the translated JSON
       await saveTemplate({ ...restOfAiResult, workflowJson: translatedWorkflowJson });
 
       toast({

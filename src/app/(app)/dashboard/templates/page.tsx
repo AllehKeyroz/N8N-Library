@@ -4,6 +4,8 @@ import React from 'react';
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,6 +16,9 @@ import {
   FileText,
   Trash2,
   Tag,
+  Server,
+  ArrowDownToLine,
+  ArrowUpFromLine,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
@@ -51,6 +56,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPlatformIcon } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { StatCard } from '@/components/stat-card';
 
 
 const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Suporte", "Finanças", "RH", "Produtividade"];
@@ -264,8 +270,8 @@ export default function TemplatesPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <header className="mb-8 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+      <header className="mb-8">
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-center">
           Templates de Automação de Workflow
         </h1>
         <div className="max-w-xl mx-auto">
@@ -279,15 +285,29 @@ export default function TemplatesPage() {
             />
           </div>
         </div>
-        <div className="flex flex-wrap justify-center gap-2 mt-6">
-          {categories.map((category) => (
-             <Button key={category} variant="outline" className="rounded-full">
-                {category}
-             </Button>
-          ))}
-        </div>
       </header>
-      
+       
+      <div className="grid gap-6 mb-8 md:grid-cols-3">
+        <StatCard 
+            title="Uploads Diários"
+            value="20.000"
+            icon={ArrowUpFromLine}
+            description="Limite de novos templates por dia no plano gratuito do Firebase."
+        />
+         <StatCard 
+            title="Leituras Diárias"
+            value="50.000"
+            icon={ArrowDownToLine}
+            description="Limite de visualizações e downloads por dia no plano gratuito."
+        />
+         <StatCard 
+            title="Armazenamento Total"
+            value="1 GiB"
+            icon={Server}
+            description="Espaço total disponível para salvar todos os seus templates."
+        />
+      </div>
+
       <div className="mb-8 flex items-center justify-between">
          <h2 className="text-2xl font-semibold tracking-tight">Templates de IA em Destaque</h2>
         <Button onClick={() => setIsUploadDialogOpen(true)}>

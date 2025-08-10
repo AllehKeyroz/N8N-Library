@@ -13,12 +13,6 @@ import {
   Download,
   FileText,
   Trash2,
-  Database,
-  Bot,
-  MessageSquare,
-  Mail,
-  File,
-  Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
@@ -112,18 +106,25 @@ export default function TemplatesPage() {
       return;
     }
 
-    setUploadLoading(true);
-    try {
-      const file = uploadFiles[0];
-      const fileContent = await file.text();
+    const file = uploadFiles[0];
+    const originalFileName = file.name;
 
-      // The AI processes everything, including translation
-      const aiResult = await processWorkflow({ workflowJson: fileContent });
+    // 1. Reset UI and close modal immediately
+    setUploadLoading(true);
+    setIsUploadDialogOpen(false);
+    toast({
+      title: 'Upload Iniciado',
+      description: `Processando "${originalFileName}" em segundo plano...`,
+      variant: 'default',
+    });
+
+    // 2. Perform the async operations without blocking the UI thread further
+    try {
+      const fileContent = await file.text();
       
-      // We get the translated JSON and the rest of the data
+      const aiResult = await processWorkflow({ workflowJson: fileContent });
       const { translatedWorkflowJson, ...restOfAiResult } = aiResult;
       
-      // We save the template with the translated JSON
       await saveTemplate({ ...restOfAiResult, workflowJson: translatedWorkflowJson });
 
       toast({
@@ -131,23 +132,23 @@ export default function TemplatesPage() {
         description: `O workflow "${aiResult.name}" foi processado e salvo com sucesso.`,
         variant: 'default',
       });
+      
+      await loadTemplates(); // Refresh list after success
 
-      await loadTemplates();
-      setIsUploadDialogOpen(false);
-      setUploadFiles(null);
     } catch (error: any) {
       console.error('Error processing or saving workflow:', error);
       toast({
         title: 'Erro no Upload',
-        description:
-          error.message ||
-          'Ocorreu um erro ao processar e salvar o workflow.',
+        description: error.message || `Ocorreu um erro ao processar "${originalFileName}".`,
         variant: 'destructive',
       });
     } finally {
-      setUploadLoading(false);
+       // 3. Reset the form state
+       setUploadLoading(false);
+       setUploadFiles(null);
     }
   };
+
 
   const handleTemplateClick = (template: Template) => {
     setSelectedTemplate(template);

@@ -53,7 +53,7 @@ import { getPlatformIcon } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
-const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Outros", "Suporte", "Finanças", "RH", "Produtividade"];
+const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Suporte", "Finanças", "RH", "Produtividade"];
 
 
 export default function TemplatesPage() {
@@ -98,9 +98,9 @@ export default function TemplatesPage() {
     const filtered = templates.filter((template) => {
       const { name, description, category, platforms } = template;
       return (
-        name.toLowerCase().includes(lowercasedQuery) ||
-        description.toLowerCase().includes(lowercasedQuery) ||
-        category.toLowerCase().includes(lowercasedQuery) ||
+        (name?.toLowerCase() ?? '').includes(lowercasedQuery) ||
+        (description?.toLowerCase() ?? '').includes(lowercasedQuery) ||
+        (category?.toLowerCase() ?? '').includes(lowercasedQuery) ||
         platforms.some((p) => p.toLowerCase().includes(lowercasedQuery))
       );
     });
@@ -118,53 +118,67 @@ export default function TemplatesPage() {
     if (!uploadFiles || uploadFiles.length === 0) {
       toast({
         title: 'Nenhum arquivo selecionado',
-        description: 'Por favor, selecione um arquivo JSON.',
+        description: 'Por favor, selecione um ou mais arquivos JSON.',
         variant: 'destructive',
       });
       return;
     }
 
-    const file = uploadFiles[0];
-    const originalFileName = file.name;
-
+    const filesToProcess = Array.from(uploadFiles);
+    
     // 1. Reset UI and close modal immediately
     setUploadLoading(true);
     setIsUploadDialogOpen(false);
     toast({
-      title: 'Upload Iniciado',
-      description: `Processando "${originalFileName}" em segundo plano...`,
+      title: 'Upload em Massa Iniciado',
+      description: `${filesToProcess.length} arquivo(s) na fila para processamento.`,
       variant: 'default',
     });
 
-    // 2. Perform the async operations without blocking the UI thread further
-    try {
-      const fileContent = await file.text();
-      
-      const aiResult = await processWorkflow({ workflowJson: fileContent });
-      const { translatedWorkflowJson, ...restOfAiResult } = aiResult;
-      
-      await saveTemplate({ ...restOfAiResult, workflowJson: translatedWorkflowJson });
+    // 2. Start processing loop without blocking UI
+    (async () => {
+      for (const file of filesToProcess) {
+        const originalFileName = file.name;
+        try {
+          const fileContent = await file.text();
+          
+          const aiResult = await processWorkflow({ workflowJson: fileContent });
+          const { translatedWorkflowJson, ...restOfAiResult } = aiResult;
+          
+          await saveTemplate({ ...restOfAiResult, workflowJson: translatedWorkflowJson });
 
-      toast({
-        title: 'Template Salvo!',
-        description: `O workflow "${aiResult.name}" foi processado e salvo com sucesso.`,
+          toast({
+            title: `Sucesso: "${originalFileName}"`,
+            description: `O workflow "${aiResult.name}" foi salvo.`,
+            variant: 'default',
+          });
+
+          await loadTemplates(); // Refresh list after each success
+
+        } catch (error: any) {
+          console.error(`Error processing ${originalFileName}:`, error);
+          toast({
+            title: `Erro em "${originalFileName}"`,
+            description: error.message || 'Ocorreu um erro ao processar este arquivo.',
+            variant: 'destructive',
+          });
+        } finally {
+            // Wait for 5 seconds before processing the next file to avoid rate limiting
+            if (filesToProcess.length > 1) {
+              await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+        }
+      }
+
+      // 3. Reset the form state after loop finishes
+      setUploadLoading(false);
+      setUploadFiles(null);
+       toast({
+        title: 'Processamento em Massa Concluído',
+        description: 'Todos os arquivos foram processados.',
         variant: 'default',
       });
-      
-      await loadTemplates(); // Refresh list after success
-
-    } catch (error: any) {
-      console.error('Error processing or saving workflow:', error);
-      toast({
-        title: 'Erro no Upload',
-        description: error.message || `Ocorreu um erro ao processar "${originalFileName}".`,
-        variant: 'destructive',
-      });
-    } finally {
-       // 3. Reset the form state
-       setUploadLoading(false);
-       setUploadFiles(null);
-    }
+    })();
   };
 
 
@@ -306,14 +320,14 @@ export default function TemplatesPage() {
           <DialogHeader>
             <DialogTitle>Upload de Workflow</DialogTitle>
             <DialogDescription>
-              Selecione um arquivo JSON de workflow do n8n para a IA processar e
+              Selecione um ou mais arquivos JSON de workflow do n8n para a IA processar e
               adicionar à biblioteca.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUploadSubmit} className="space-y-6 py-4">
             <div className="space-y-2">
               <Label htmlFor="workflow-files">
-                Arquivo de Workflow (.json)
+                Arquivo(s) de Workflow (.json)
               </Label>
               <div className="relative border-2 border-dashed border-muted-foreground/50 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:border-primary transition-colors">
                 <UploadCloud className="h-12 w-12 text-muted-foreground mb-4" />
@@ -324,21 +338,26 @@ export default function TemplatesPage() {
                   ou arraste e solte
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  JSON (apenas um arquivo por vez)
+                  Arquivos JSON
                 </p>
                 <Input
                   id="workflow-files"
                   type="file"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   accept=".json"
+                  multiple
                   onChange={handleFileChange}
                   disabled={uploadLoading}
                 />
               </div>
               {uploadFiles && uploadFiles.length > 0 && (
-                <div className="text-sm text-muted-foreground pt-2">
-                  Arquivo selecionado: {uploadFiles[0].name}
-                </div>
+                 <div className="text-sm text-muted-foreground pt-2">
+                   {uploadFiles.length} arquivo(s) selecionado(s):{' '}
+                   <ul>
+                     {Array.from(uploadFiles).slice(0, 5).map(file => <li key={file.name}>- {file.name}</li>)}
+                     {uploadFiles.length > 5 && <li>...e mais {uploadFiles.length - 5}</li>}
+                   </ul>
+                 </div>
               )}
             </div>
             <div className="flex justify-end gap-2">
@@ -353,7 +372,7 @@ export default function TemplatesPage() {
                 ) : (
                   <UploadCloud className="mr-2" />
                 )}
-                {uploadLoading ? 'Processando...' : 'Enviar para Biblioteca'}
+                {uploadLoading ? 'Processando...' : `Enviar ${uploadFiles?.length || 0} Arquivo(s)`}
               </Button>
             </div>
           </form>

@@ -141,7 +141,17 @@ export default function TemplatesPage() {
   };
 
   const handleDownload = (template: Template) => {
-    const blob = new Blob([JSON.stringify(JSON.parse(template.workflowJson), null, 2)], { type: 'application/json' });
+    let jsonString = template.workflowJson;
+    try {
+      // Tenta formatar o JSON para uma leitura mais fácil.
+      // Se a string não for um JSON válido, isso vai falhar e usamos a string original.
+      jsonString = JSON.stringify(JSON.parse(template.workflowJson), null, 2);
+    } catch (e) {
+      console.warn("Could not parse and re-stringify the workflow JSON. Using original string.", e);
+      // Usa a string original se o parse falhar.
+    }
+
+    const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -407,3 +417,5 @@ export default function TemplatesPage() {
     </div>
   );
 }
+
+    

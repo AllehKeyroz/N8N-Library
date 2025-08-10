@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, serverTimestamp } from "firebase/firestore";
-import type { ProcessWorkflowOutput } from "@/ai/flows/workflow-processor";
+import type { ProcessWorkflowOutput } from "@/ai/flows/workflow-types";
 
 export type Template = ProcessWorkflowOutput & {
   id: string;

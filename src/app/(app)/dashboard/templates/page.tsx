@@ -277,7 +277,7 @@ export default function TemplatesPage() {
                   {selectedTemplate.name}
                 </DialogTitle>
               </DialogHeader>
-              <ScrollArea className="flex-grow pr-6 -mr-6">
+              <div className="flex-grow overflow-y-auto pr-6 -mr-6">
                   <DialogDescription className="pt-2 text-base">
                     {selectedTemplate.description}
                   </DialogDescription>
@@ -301,13 +301,17 @@ export default function TemplatesPage() {
                           <FileText className="mr-2" />
                           Explicação Técnica
                         </AccordionTrigger>
-                        <AccordionContent className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
-                          {selectedTemplate.explanation}
+                        <AccordionContent>
+                          <ScrollArea className="h-60 w-full">
+                             <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap pr-4">
+                               {selectedTemplate.explanation}
+                             </div>
+                          </ScrollArea>
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>
                   </div>
-              </ScrollArea>
+              </div>
               <DialogFooter className="pt-4 flex-shrink-0">
                 <Button
                   variant="outline"

@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, where } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, where, doc, deleteDoc } from "firebase/firestore";
 import type { ProcessWorkflowOutput } from "@/ai/flows/workflow-types";
 import { createHash } from 'crypto';
 
@@ -9,6 +9,7 @@ export type Template = ProcessWorkflowOutput & {
   id: string;
   createdAt: any;
   workflowHash: string;
+  workflowJson: string;
 };
 
 export async function saveTemplate(templateData: ProcessWorkflowOutput & { workflowJson: string }): Promise<string> {
@@ -16,7 +17,6 @@ export async function saveTemplate(templateData: ProcessWorkflowOutput & { workf
   const workflowHash = createHash('sha256').update(workflowJson).digest('hex');
 
   try {
-    // Check for duplicates
     const q = query(collection(db, "templates"), where("workflowHash", "==", workflowHash));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
@@ -24,16 +24,15 @@ export async function saveTemplate(templateData: ProcessWorkflowOutput & { workf
       throw new Error("Este template de workflow já existe na biblioteca.");
     }
 
-    // Add new template
     const docRef = await addDoc(collection(db, "templates"), {
       ...restData,
+      workflowJson: workflowJson,
       workflowHash: workflowHash,
       createdAt: serverTimestamp(),
     });
     return docRef.id;
   } catch (e: any) {
     console.error("Error adding document: ", e);
-    // Re-throw the original error message if it's our custom one
     if (e.message.includes("Este template de workflow")) {
       throw e;
     }
@@ -56,6 +55,7 @@ export async function getTemplates(): Promise<Template[]> {
         explanation: data.explanation,
         createdAt: data.createdAt,
         workflowHash: data.workflowHash,
+        workflowJson: data.workflowJson,
       } as Template;
     });
     return templates;
@@ -63,4 +63,14 @@ export async function getTemplates(): Promise<Template[]> {
     console.error("Error getting documents: ", e);
     throw new Error("Não foi possível buscar os templates do banco de dados.");
   }
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+    try {
+        const templateDocRef = doc(db, "templates", id);
+        await deleteDoc(templateDocRef);
+    } catch (e) {
+        console.error("Error deleting document: ", e);
+        throw new Error("Não foi possível excluir o template do banco de dados.");
+    }
 }

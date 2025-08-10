@@ -14,9 +14,10 @@ import {
   UploadCloud,
   Download,
   FileText,
+  Trash2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getTemplates, Template } from '@/services/template-service';
+import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,6 +28,17 @@ import {
   DialogClose,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { processWorkflow } from '@/ai/flows/workflow-processor';
@@ -52,6 +64,8 @@ export default function TemplatesPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
     null
   );
+  const [isDeleting, setIsDeleting] = useState(false);
+
 
   async function loadTemplates() {
     try {
@@ -124,11 +138,42 @@ export default function TemplatesPage() {
   };
 
   const handleDownload = (template: Template) => {
-    // Placeholder for download logic
+    const blob = new Blob([JSON.stringify(JSON.parse(template.workflowJson), null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${template.name.replace(/\s+/g, '_').toLowerCase()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
     toast({
-      title: 'Download iniciado (simulação)',
-      description: `O download do template "${template.name}" começaria agora.`,
+      title: 'Download Iniciado',
+      description: `O download do template "${template.name}" foi iniciado.`,
     });
+  };
+
+  const handleDelete = async (templateId: string) => {
+    setIsDeleting(true);
+    try {
+      await deleteTemplate(templateId);
+      toast({
+        title: 'Template Excluído',
+        description: 'O template foi excluído com sucesso.',
+        variant: 'default',
+      });
+      setSelectedTemplate(null); // Fecha o modal de detalhes
+      await loadTemplates(); // Recarrega a lista
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao Excluir',
+        description: error.message || 'Não foi possível excluir o template.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -312,17 +357,45 @@ export default function TemplatesPage() {
                     </Accordion>
                   </div>
               </div>
-              <DialogFooter className="pt-4 flex-shrink-0">
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedTemplate(null)}
-                >
-                  Fechar
-                </Button>
-                <Button onClick={() => handleDownload(selectedTemplate)}>
-                  <Download className="mr-2" />
-                  Baixar Template
-                </Button>
+              <DialogFooter className="pt-4 flex-shrink-0 sm:justify-between">
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">
+                        <Trash2 className="mr-2" />
+                        Excluir
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação não pode ser desfeita. Isso excluirá permanentemente o template
+                          da biblioteca.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(selectedTemplate.id)}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? 'Excluindo...' : 'Sim, Excluir'}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedTemplate(null)}
+                  >
+                    Fechar
+                  </Button>
+                  <Button onClick={() => handleDownload(selectedTemplate)}>
+                    <Download className="mr-2" />
+                    Baixar Template
+                  </Button>
+                </div>
               </DialogFooter>
             </>
           )}

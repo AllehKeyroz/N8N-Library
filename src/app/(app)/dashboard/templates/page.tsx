@@ -302,7 +302,7 @@ export default function TemplatesPage() {
                           Explicação Técnica
                         </AccordionTrigger>
                         <AccordionContent>
-                          <ScrollArea className="h-60 w-full">
+                          <ScrollArea className="h-72 w-full">
                              <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap pr-4">
                                {selectedTemplate.explanation}
                              </div>

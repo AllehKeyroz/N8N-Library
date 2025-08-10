@@ -1,9 +1,11 @@
-import { AuthForm } from "@/components/auth-form";
-
-export default function Home() {
+export default function AuthLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-background">
-      <AuthForm />
+      {children}
     </main>
   );
 }

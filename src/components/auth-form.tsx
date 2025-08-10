@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -42,6 +43,7 @@ const loginSchema = z.object({
 
 export function AuthForm() {
   const { toast } = useToast();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const registerForm = useForm<z.infer<typeof registerSchema>>({
@@ -68,10 +70,10 @@ export function AuthForm() {
       await createUserWithEmailAndPassword(auth, values.email, values.password);
       toast({
         title: "Conta criada com sucesso!",
-        description: "Você já pode fazer login.",
+        description: "Você será redirecionado em breve.",
         variant: "default",
       });
-      registerForm.reset();
+      router.push('/dashboard/templates');
     } catch (error: any) {
       toast({
         title: "Erro ao criar conta",
@@ -92,7 +94,7 @@ export function AuthForm() {
         description: "Bem-vindo de volta!",
         variant: "default",
       });
-      loginForm.reset();
+      router.push('/dashboard/templates');
     } catch (error: any) {
       toast({
         title: "Erro ao fazer login",
@@ -110,17 +112,58 @@ export function AuthForm() {
         <div className="mx-auto bg-primary/10 p-3 rounded-full mb-4 w-fit">
             <LockKeyhole className="w-8 h-8 text-primary" />
         </div>
-        <CardTitle className="text-3xl font-bold font-headline">AuthFlow</CardTitle>
+        <CardTitle className="text-3xl font-bold font-headline">N8N Library</CardTitle>
         <CardDescription>
           Acesse sua conta ou crie uma nova para continuar.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="register" className="w-full">
+        <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="register">Criar Conta</TabsTrigger>
             <TabsTrigger value="login">Acessar</TabsTrigger>
+            <TabsTrigger value="register">Criar Conta</TabsTrigger>
           </TabsList>
+           <TabsContent value="login">
+            <Form {...loginForm}>
+              <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4 mt-4">
+                <FormField
+                  control={loginForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input type="email" placeholder="seu@email.com" {...field} className="pl-10" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={loginForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Senha</FormLabel>
+                      <FormControl>
+                         <div className="relative">
+                            <LockKeyhole className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input type="password" placeholder="Sua senha" {...field} className="pl-10" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Acessando..." : "Acessar"}
+                </Button>
+              </form>
+            </Form>
+          </TabsContent>
           <TabsContent value="register">
             <Form {...registerForm}>
               <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4 mt-4">
@@ -190,47 +233,6 @@ export function AuthForm() {
                 />
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Criando..." : "Criar conta gratuita"}
-                </Button>
-              </form>
-            </Form>
-          </TabsContent>
-          <TabsContent value="login">
-            <Form {...loginForm}>
-              <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4 mt-4">
-                <FormField
-                  control={loginForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input type="email" placeholder="seu@email.com" {...field} className="pl-10" />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={loginForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senha</FormLabel>
-                      <FormControl>
-                         <div className="relative">
-                            <LockKeyhole className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input type="password" placeholder="Sua senha" {...field} className="pl-10" />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Acessando..." : "Acessar"}
                 </Button>
               </form>
             </Form>

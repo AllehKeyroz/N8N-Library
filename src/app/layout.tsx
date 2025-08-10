@@ -1,10 +1,14 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { SidebarProvider } from '@/components/ui/sidebar';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'AuthFlow',
-  description: 'Crie ou acesse sua conta de forma rápida e segura.',
+  title: 'N8N Template Library',
+  description: 'Sua biblioteca de templates n8n com o poder da IA.',
 };
 
 export default function RootLayout({
@@ -14,13 +18,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-body antialiased">
-        {children}
+      <body className={`${inter.variable} font-body antialiased`}>
+        <SidebarProvider>{children}</SidebarProvider>
         <Toaster />
       </body>
     </html>

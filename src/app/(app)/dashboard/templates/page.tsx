@@ -56,7 +56,6 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPlatformIcon } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { StatCard } from '@/components/stat-card';
 
 
 const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Suporte", "Finanças", "RH", "Produtividade"];
@@ -286,27 +285,6 @@ export default function TemplatesPage() {
           </div>
         </div>
       </header>
-       
-      <div className="grid gap-6 mb-8 md:grid-cols-3">
-        <StatCard 
-            title="Uploads Diários"
-            value="20.000"
-            icon={ArrowUpFromLine}
-            description="Limite de novos templates por dia no plano gratuito do Firebase."
-        />
-         <StatCard 
-            title="Leituras Diárias"
-            value="50.000"
-            icon={ArrowDownToLine}
-            description="Limite de visualizações e downloads por dia no plano gratuito."
-        />
-         <StatCard 
-            title="Armazenamento Total"
-            value="1 GiB"
-            icon={Server}
-            description="Espaço total disponível para salvar todos os seus templates."
-        />
-      </div>
 
       <div className="mb-8 flex items-center justify-between">
          <h2 className="text-2xl font-semibold tracking-tight">Templates de IA em Destaque</h2>

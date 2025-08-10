@@ -10,7 +10,8 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { FileText } from 'lucide-react';
+import { FileText, UploadCloud } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function DashboardLayout({
   children,

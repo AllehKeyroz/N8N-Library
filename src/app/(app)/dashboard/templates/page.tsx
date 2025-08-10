@@ -3,9 +3,6 @@
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -15,6 +12,12 @@ import {
   Download,
   FileText,
   Trash2,
+  Database,
+  Bot,
+  MessageSquare,
+  Mail,
+  File,
+  Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
@@ -50,6 +53,12 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getPlatformIcon } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+
+const categories = ["AI", "Sales", "IT Ops", "Marketing", "Document Ops", "Other", "Support"];
+
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -143,12 +152,9 @@ export default function TemplatesPage() {
   const handleDownload = (template: Template) => {
     let jsonString = template.workflowJson;
     try {
-      // Tenta formatar o JSON para uma leitura mais fácil.
-      // Se a string não for um JSON válido, isso vai falhar e usamos a string original.
       jsonString = JSON.stringify(JSON.parse(template.workflowJson), null, 2);
     } catch (e) {
       console.warn("Could not parse and re-stringify the workflow JSON. Using original string.", e);
-      // Usa a string original se o parse falhar.
     }
 
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -176,8 +182,8 @@ export default function TemplatesPage() {
         description: 'O template foi excluído com sucesso.',
         variant: 'default',
       });
-      setSelectedTemplate(null); // Fecha o modal de detalhes
-      await loadTemplates(); // Recarrega a lista
+      setSelectedTemplate(null); 
+      await loadTemplates(); 
     } catch (error: any) {
       toast({
         title: 'Erro ao Excluir',
@@ -191,30 +197,36 @@ export default function TemplatesPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <header className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">
-            Biblioteca de Templates
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Encontre, filtre e utilize os melhores workflows do N8N para
-            automatizar suas tarefas.
-          </p>
+      <header className="mb-8 text-center">
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+          Workflow Automation Templates
+        </h1>
+        <div className="max-w-xl mx-auto">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Search apps, roles, usecases..."
+              className="pl-12 text-base h-12 rounded-full bg-secondary"
+            />
+          </div>
         </div>
+        <div className="flex flex-wrap justify-center gap-2 mt-6">
+          {categories.map((category) => (
+             <Button key={category} variant="outline" className="rounded-full">
+                {category}
+             </Button>
+          ))}
+        </div>
+      </header>
+      
+      <div className="mb-8 flex items-center justify-between">
+         <h2 className="text-2xl font-semibold tracking-tight">Trending AI Templates</h2>
         <Button onClick={() => setIsUploadDialogOpen(true)}>
           <UploadCloud className="mr-2" />
           Fazer Upload
         </Button>
-      </header>
-      <div className="mb-8">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, categoria ou plataforma..."
-            className="pl-12 text-base h-12"
-          />
-        </div>
       </div>
+
       {loading ? (
         <div className="flex justify-center items-center col-span-full py-12">
           <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
@@ -235,23 +247,24 @@ export default function TemplatesPage() {
           {templates.map((template) => (
             <Card
               key={template.id}
-              className="flex flex-col hover:shadow-lg transition-shadow cursor-pointer"
+              className="flex flex-col hover:shadow-lg transition-shadow cursor-pointer bg-secondary border-muted/50"
               onClick={() => handleTemplateClick(template)}
             >
-              <CardHeader className="flex-grow">
-                <CardTitle>{template.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {template.platforms.map((platform) => (
-                    <span
-                      key={platform}
-                      className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full"
-                    >
-                      {platform}
-                    </span>
-                  ))}
-                </div>
+              <CardContent className="p-4 flex flex-col h-full">
+                 <div className="flex items-center gap-2 mb-4">
+                    {template.platforms.slice(0, 5).map((platform) => {
+                      const Icon = getPlatformIcon(platform);
+                      return <Icon key={platform} className="h-5 w-5 text-muted-foreground" />;
+                    })}
+                 </div>
+                 <h3 className="font-semibold text-lg mb-2 flex-grow">{template.name}</h3>
+                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-auto">
+                   <Avatar className="h-6 w-6">
+                     <AvatarImage src={`https://placehold.co/32x32.png`} alt="Author" />
+                     <AvatarFallback>A</AvatarFallback>
+                   </Avatar>
+                   <span>N8N Community</span>
+                 </div>
               </CardContent>
             </Card>
           ))}
@@ -346,8 +359,9 @@ export default function TemplatesPage() {
                         {selectedTemplate.platforms.map((platform) => (
                           <span
                             key={platform}
-                            className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full"
+                            className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
                           >
+                           {React.createElement(getPlatformIcon(platform), {className: "h-4 w-4"})}
                             {platform}
                           </span>
                         ))}
@@ -417,5 +431,3 @@ export default function TemplatesPage() {
     </div>
   );
 }
-
-    

@@ -8,7 +8,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, LoaderCircle, UploadCloud } from 'lucide-react';
+import {
+  Search,
+  LoaderCircle,
+  UploadCloud,
+  Download,
+  FileText,
+} from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template } from '@/services/template-service';
@@ -20,11 +26,18 @@ import {
   DialogTitle,
   DialogDescription,
   DialogClose,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { processWorkflow } from '@/ai/flows/workflow-processor';
 import { saveTemplate } from '@/services/template-service';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -35,6 +48,10 @@ export default function TemplatesPage() {
   const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const { toast } = useToast();
+
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+    null
+  );
 
   async function loadTemplates() {
     try {
@@ -58,7 +75,9 @@ export default function TemplatesPage() {
     setUploadFiles(event.target.files);
   };
 
-  const handleUploadSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleUploadSubmit = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
     if (!uploadFiles || uploadFiles.length === 0) {
       toast({
@@ -83,20 +102,33 @@ export default function TemplatesPage() {
         variant: 'default',
       });
 
-      await loadTemplates(); // Recarrega os templates
-      setIsUploadDialogOpen(false); // Fecha o dialog
-      setUploadFiles(null); // Limpa os arquivos selecionados
+      await loadTemplates();
+      setIsUploadDialogOpen(false);
+      setUploadFiles(null);
     } catch (error: any) {
       console.error('Error processing or saving workflow:', error);
       toast({
         title: 'Erro no processamento',
         description:
-          error.message || 'Ocorreu um erro ao processar e salvar o workflow.',
+          error.message ||
+          'Ocorreu um erro ao processar e salvar o workflow.',
         variant: 'destructive',
       });
     } finally {
       setUploadLoading(false);
     }
+  };
+
+  const handleTemplateClick = (template: Template) => {
+    setSelectedTemplate(template);
+  };
+
+  const handleDownload = (template: Template) => {
+    // Placeholder for download logic
+    toast({
+      title: 'Download iniciado (simulação)',
+      description: `O download do template "${template.name}" começaria agora.`,
+    });
   };
 
   return (
@@ -145,7 +177,8 @@ export default function TemplatesPage() {
           {templates.map((template) => (
             <Card
               key={template.id}
-              className="overflow-hidden hover:shadow-lg transition-shadow"
+              className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => handleTemplateClick(template)}
             >
               <Image
                 src={template.image}
@@ -156,7 +189,7 @@ export default function TemplatesPage() {
                 data-ai-hint={template.hint}
               />
               <CardHeader>
-                <CardTitle>{template.name}</CardTitle>
+                <CardTitle className="truncate">{template.name}</CardTitle>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {template.platforms.map((platform) => (
                     <span
@@ -169,15 +202,14 @@ export default function TemplatesPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground text-sm">
-                  {template.description}
-                </p>
+                {/* Description removed from card */}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
+      {/* Upload Dialog */}
       <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
@@ -189,7 +221,9 @@ export default function TemplatesPage() {
           </DialogHeader>
           <form onSubmit={handleUploadSubmit} className="space-y-6 py-4">
             <div className="space-y-2">
-              <Label htmlFor="workflow-files">Arquivo de Workflow (.json)</Label>
+              <Label htmlFor="workflow-files">
+                Arquivo de Workflow (.json)
+              </Label>
               <div className="relative border-2 border-dashed border-muted-foreground/50 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:border-primary transition-colors">
                 <UploadCloud className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="mb-2 text-sm text-muted-foreground">
@@ -222,21 +256,79 @@ export default function TemplatesPage() {
                   Cancelar
                 </Button>
               </DialogClose>
-              <Button
-                type="submit"
-                disabled={uploadLoading || !uploadFiles}
-              >
+              <Button type="submit" disabled={uploadLoading || !uploadFiles}>
                 {uploadLoading ? (
                   <LoaderCircle className="mr-2 animate-spin" />
                 ) : (
                   <UploadCloud className="mr-2" />
                 )}
-                {uploadLoading
-                  ? 'Processando...'
-                  : 'Enviar para Biblioteca'}
+                {uploadLoading ? 'Processando...' : 'Enviar para Biblioteca'}
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Detail Dialog */}
+      <Dialog
+        open={!!selectedTemplate}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedTemplate(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          {selectedTemplate && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-2xl">
+                  {selectedTemplate.name}
+                </DialogTitle>
+                <DialogDescription className="pt-2">
+                  {selectedTemplate.description}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Plataformas</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedTemplate.platforms.map((platform) => (
+                      <span
+                        key={platform}
+                        className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full"
+                      >
+                        {platform}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="explanation">
+                    <AccordionTrigger>
+                      <FileText className="mr-2" />
+                      Como funciona este workflow?
+                    </AccordionTrigger>
+                    <AccordionContent className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
+                      {selectedTemplate.explanation}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedTemplate(null)}
+                >
+                  Fechar
+                </Button>
+                <Button onClick={() => handleDownload(selectedTemplate)}>
+                  <Download className="mr-2" />
+                  Baixar Template
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

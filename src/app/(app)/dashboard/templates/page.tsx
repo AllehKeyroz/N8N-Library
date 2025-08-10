@@ -71,6 +71,9 @@ export default function TemplatesPage() {
   );
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([]);
+
 
   async function loadTemplates() {
     try {
@@ -89,6 +92,20 @@ export default function TemplatesPage() {
   useEffect(() => {
     loadTemplates();
   }, []);
+
+  useEffect(() => {
+    const lowercasedQuery = searchQuery.toLowerCase();
+    const filtered = templates.filter((template) => {
+      const { name, description, category, platforms } = template;
+      return (
+        name.toLowerCase().includes(lowercasedQuery) ||
+        description.toLowerCase().includes(lowercasedQuery) ||
+        category.toLowerCase().includes(lowercasedQuery) ||
+        platforms.some((p) => p.toLowerCase().includes(lowercasedQuery))
+      );
+    });
+    setFilteredTemplates(filtered);
+  }, [searchQuery, templates]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setUploadFiles(event.target.files);
@@ -203,6 +220,8 @@ export default function TemplatesPage() {
     }
   };
 
+  const templatesToDisplay = searchQuery ? filteredTemplates : templates;
+
   return (
     <div className="p-4 md:p-8">
       <header className="mb-8 text-center">
@@ -215,6 +234,8 @@ export default function TemplatesPage() {
             <Input
               placeholder="Pesquisar apps, funções, casos de uso..."
               className="pl-12 text-base h-12 rounded-full bg-secondary"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
@@ -244,15 +265,15 @@ export default function TemplatesPage() {
         <div className="text-center col-span-full py-12 text-destructive">
           <p>{error}</p>
         </div>
-      ) : templates.length === 0 ? (
+      ) : templatesToDisplay.length === 0 ? (
         <div className="text-center col-span-full py-12">
           <p className="text-muted-foreground">
-            Nenhum template encontrado. Clique em "Fazer Upload" para adicionar o primeiro!
+            {searchQuery ? 'Nenhum template encontrado para sua busca.' : 'Nenhum template encontrado. Clique em "Fazer Upload" para adicionar o primeiro!'}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {templates.map((template) => (
+          {templatesToDisplay.map((template) => (
             <Card
               key={template.id}
               className="flex flex-col hover:shadow-lg transition-shadow cursor-pointer bg-secondary border-muted/50"

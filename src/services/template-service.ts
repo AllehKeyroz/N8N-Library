@@ -1,13 +1,13 @@
 'use server';
 
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, where, doc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, where, doc, deleteDoc, Timestamp } from "firebase/firestore";
 import type { ProcessWorkflowOutput } from "@/ai/flows/workflow-types";
 import { createHash } from 'crypto';
 
 export type Template = ProcessWorkflowOutput & {
   id: string;
-  createdAt: any;
+  createdAt: string; // Changed to string to be serializable
   workflowHash: string;
   workflowJson: string;
 };
@@ -46,6 +46,7 @@ export async function getTemplates(): Promise<Template[]> {
     const querySnapshot = await getDocs(q);
     const templates = querySnapshot.docs.map(doc => {
       const data = doc.data();
+      const createdAtTimestamp = data.createdAt as Timestamp;
       return {
         id: doc.id,
         name: data.name,
@@ -53,7 +54,7 @@ export async function getTemplates(): Promise<Template[]> {
         category: data.category,
         platforms: data.platforms,
         explanation: data.explanation,
-        createdAt: data.createdAt,
+        createdAt: createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : '',
         workflowHash: data.workflowHash,
         workflowJson: data.workflowJson,
       } as Template;

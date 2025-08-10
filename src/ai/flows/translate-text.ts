@@ -28,8 +28,9 @@ const translateTextFlow = ai.defineFlow(
     outputSchema: TranslateTextOutputSchema,
   },
   async (text) => {
-    if (!text) {
-      return '';
+    // Garantir que o texto não seja nulo ou vazio antes de enviar para a IA
+    if (!text || text.trim() === '') {
+      return text;
     }
     const {output} = await translatePrompt(text);
     return output || text; // Retorna o texto original se a tradução falhar

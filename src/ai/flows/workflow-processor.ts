@@ -90,7 +90,8 @@ const processWorkflowFlow = ai.defineFlow(
     const translationPromises = workflow.nodes.map(async (node: any) => {
       if (node.name) {
         const translatedName = await translateText(node.name);
-        return {...node, name: translatedName};
+        // Use the original name if translation fails or returns empty
+        return {...node, name: translatedName || node.name};
       }
       return node;
     });

@@ -1,46 +1,128 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, LoaderCircle } from 'lucide-react';
+import { Search, LoaderCircle, UploadCloud } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template } from '@/services/template-service';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { processWorkflow } from '@/ai/flows/workflow-processor';
+import { saveTemplate } from '@/services/template-service';
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadTemplates() {
-      try {
-        setLoading(true);
-        const fetchedTemplates = await getTemplates();
-        setTemplates(fetchedTemplates);
-        setError(null);
-      } catch (err: any) {
-        setError(err.message || 'Falha ao carregar templates.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const { toast } = useToast();
+
+  async function loadTemplates() {
+    try {
+      setLoading(true);
+      const fetchedTemplates = await getTemplates();
+      setTemplates(fetchedTemplates);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Falha ao carregar templates.');
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  useEffect(() => {
     loadTemplates();
   }, []);
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadFiles(event.target.files);
+  };
+
+  const handleUploadSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!uploadFiles || uploadFiles.length === 0) {
+      toast({
+        title: 'Nenhum arquivo selecionado',
+        description: 'Por favor, selecione um arquivo JSON.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadLoading(true);
+    try {
+      const file = uploadFiles[0];
+      const fileContent = await file.text();
+
+      const result = await processWorkflow({ workflowJson: fileContent });
+      await saveTemplate(result);
+
+      toast({
+        title: 'Template Salvo!',
+        description: `O workflow "${result.name}" foi processado e salvo com sucesso.`,
+        variant: 'default',
+      });
+
+      await loadTemplates(); // Recarrega os templates
+      setIsUploadDialogOpen(false); // Fecha o dialog
+      setUploadFiles(null); // Limpa os arquivos selecionados
+    } catch (error: any) {
+      console.error('Error processing or saving workflow:', error);
+      toast({
+        title: 'Erro no processamento',
+        description:
+          error.message || 'Ocorreu um erro ao processar e salvar o workflow.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-8">
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight">Biblioteca de Templates</h1>
-        <p className="text-muted-foreground mt-2">
-          Encontre, filtre e utilize os melhores workflows do N8N para automatizar suas tarefas.
-        </p>
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight">
+            Biblioteca de Templates
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Encontre, filtre e utilize os melhores workflows do N8N para
+            automatizar suas tarefas.
+          </p>
+        </div>
+        <Button onClick={() => setIsUploadDialogOpen(true)}>
+          <UploadCloud className="mr-2" />
+          Fazer Upload
+        </Button>
       </header>
       <div className="mb-8">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input placeholder="Buscar por nome, categoria ou plataforma..." className="pl-12 text-base h-12" />
+          <Input
+            placeholder="Buscar por nome, categoria ou plataforma..."
+            className="pl-12 text-base h-12"
+          />
         </div>
       </div>
       {loading ? (
@@ -54,37 +136,109 @@ export default function TemplatesPage() {
         </div>
       ) : templates.length === 0 ? (
         <div className="text-center col-span-full py-12">
-          <p className="text-muted-foreground">Nenhum template encontrado. Adicione um no painel de Admin!</p>
+          <p className="text-muted-foreground">
+            Nenhum template encontrado. Adicione um no painel de Admin!
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {templates.map((template) => (
-            <Card key={template.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <Image 
-                src={template.image} 
-                width={600} 
-                height={400} 
-                alt={template.name} 
-                className="w-full h-48 object-cover" 
+            <Card
+              key={template.id}
+              className="overflow-hidden hover:shadow-lg transition-shadow"
+            >
+              <Image
+                src={template.image}
+                width={600}
+                height={400}
+                alt={template.name}
+                className="w-full h-48 object-cover"
                 data-ai-hint={template.hint}
               />
               <CardHeader>
                 <CardTitle>{template.name}</CardTitle>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {template.platforms.map(platform => (
-                    <span key={platform} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full">
+                  {template.platforms.map((platform) => (
+                    <span
+                      key={platform}
+                      className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full"
+                    >
                       {platform}
                     </span>
                   ))}
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground text-sm">{template.description}</p>
+                <p className="text-muted-foreground text-sm">
+                  {template.description}
+                </p>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle>Upload de Workflow</DialogTitle>
+            <DialogDescription>
+              Selecione um arquivo JSON de workflow do n8n para a IA processar e
+              adicionar à biblioteca.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUploadSubmit} className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="workflow-files">Arquivo de Workflow (.json)</Label>
+              <div className="relative border-2 border-dashed border-muted-foreground/50 rounded-lg p-8 flex flex-col items-center justify-center text-center hover:border-primary transition-colors">
+                <UploadCloud className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="mb-2 text-sm text-muted-foreground">
+                  <span className="font-semibold text-primary">
+                    Clique para fazer o upload
+                  </span>{' '}
+                  ou arraste e solte
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  JSON (apenas um arquivo por vez)
+                </p>
+                <Input
+                  id="workflow-files"
+                  type="file"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  accept=".json"
+                  onChange={handleFileChange}
+                  disabled={uploadLoading}
+                />
+              </div>
+              {uploadFiles && uploadFiles.length > 0 && (
+                <div className="text-sm text-muted-foreground pt-2">
+                  Arquivo selecionado: {uploadFiles[0].name}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Cancelar
+                </Button>
+              </DialogClose>
+              <Button
+                type="submit"
+                disabled={uploadLoading || !uploadFiles}
+              >
+                {uploadLoading ? (
+                  <LoaderCircle className="mr-2 animate-spin" />
+                ) : (
+                  <UploadCloud className="mr-2" />
+                )}
+                {uploadLoading
+                  ? 'Processando...'
+                  : 'Enviar para Biblioteca'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

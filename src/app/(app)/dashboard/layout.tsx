@@ -10,7 +10,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { Upload, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -30,15 +30,9 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/templates" isActive={pathname === '/dashboard/templates'}>
+              <SidebarMenuButton href="/dashboard/templates" isActive={pathname.startsWith('/dashboard/templates')}>
                 <FileText />
                 Templates
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/admin" isActive={pathname === '/dashboard/admin'}>
-                <Upload />
-                Admin
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

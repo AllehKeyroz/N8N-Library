@@ -18,6 +18,7 @@ export const ProcessWorkflowOutputSchema = z.object({
   name: z.string().describe('O nome do workflow.'),
   description: z.string().describe('Uma descrição clara e concisa do que o workflow faz.'),
   category: z.string().describe('A categoria principal do workflow (ex: Marketing, Vendas, Produtividade).'),
+  niche: z.string().describe('O nicho de mercado principal para o qual o workflow é útil (ex: Médico, Advocacia, E-commerce).'),
   platforms: z.array(z.string()).describe('Uma lista das principais plataformas ou aplicativos que o workflow integra (ex: Notion, Google Sheets, Slack).'),
   explanation: z.string().describe('Uma explicação detalhada, passo a passo, de como o workflow funciona, para ser usada como documentação interna.'),
   translatedWorkflowJson: z.string().describe('O workflow JSON completo com os nomes dos nós traduzidos para o português.'),

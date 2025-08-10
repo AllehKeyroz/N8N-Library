@@ -19,6 +19,7 @@ import {
   Server,
   ArrowDownToLine,
   ArrowUpFromLine,
+  Briefcase,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
@@ -101,11 +102,12 @@ export default function TemplatesPage() {
   useEffect(() => {
     const lowercasedQuery = searchQuery.toLowerCase();
     const filtered = templates.filter((template) => {
-      const { name, description, category, platforms } = template;
+      const { name, description, category, platforms, niche } = template;
       return (
         (name?.toLowerCase() ?? '').includes(lowercasedQuery) ||
         (description?.toLowerCase() ?? '').includes(lowercasedQuery) ||
         (category?.toLowerCase() ?? '').includes(lowercasedQuery) ||
+        (niche?.toLowerCase() ?? '').includes(lowercasedQuery) ||
         platforms.some((p) => p.toLowerCase().includes(lowercasedQuery))
       );
     });
@@ -287,7 +289,7 @@ export default function TemplatesPage() {
       </header>
 
       <div className="mb-8 flex items-center justify-between">
-         <h2 className="text-2xl font-semibold tracking-tight">Templates de IA em Destaque</h2>
+         <h2 className="text-2xl font-semibold tracking-tight">Templates em Destaque</h2>
         <Button onClick={() => setIsUploadDialogOpen(true)}>
           <UploadCloud className="mr-2" />
           Fazer Upload
@@ -425,7 +427,7 @@ export default function TemplatesPage() {
                     {selectedTemplate.description}
                   </DialogDescription>
                   <div className="py-4 space-y-4">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-start gap-8">
                         <div>
                           <h3 className="font-semibold mb-2">Plataformas</h3>
                           <div className="flex flex-wrap gap-2">
@@ -440,7 +442,16 @@ export default function TemplatesPage() {
                             ))}
                           </div>
                         </div>
-                         <div>
+                         <div className="flex-shrink-0">
+                            <h3 className="font-semibold mb-2">Nicho</h3>
+                             <span
+                                className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
+                              >
+                               <Briefcase className="h-4 w-4" />
+                                {selectedTemplate.niche}
+                              </span>
+                          </div>
+                         <div className="flex-shrink-0">
                             <h3 className="font-semibold mb-2">Categoria</h3>
                              <span
                                 className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"

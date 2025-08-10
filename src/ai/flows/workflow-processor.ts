@@ -45,7 +45,7 @@ const analysisPrompt = ai.definePrompt({
       translatedNodes: TranslatedNamesSchema,
     }),
   },
-  prompt: `Você é um especialista em n8n e automação de processos. Sua tarefa é analisar o JSON de um workflow do n8n, extrair informações importantes e traduzir os nomes dos nós.
+  prompt: `Você é um especialista em n8n e automação de processos de negócios. Sua tarefa é analisar o JSON de um workflow do n8n, extrair informações importantes e traduzir os nomes dos nós.
 
 Analise o seguinte workflow:
 \`\`\`json
@@ -56,7 +56,8 @@ Tarefas:
 1.  **Análise de Metadados:**
     *   **Nome:** Crie um nome curto, específico e objetivo para o workflow (máximo 50 caracteres). Evite termos genéricos como "Automação" ou "Workflow". Exemplo: "Sincronizar Pedidos do Stripe com Notion".
     *   **Descrição:** Escreva uma descrição concisa e de alto nível, focada no objetivo e no resultado final do workflow. Ideal para um usuário final entender o valor da automação.
-    *   **Categoria:** Com base na funcionalidade geral do workflow e nos nomes dos nós ([{{#each nodeNames}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}]), classifique-o em uma das seguintes categorias: [{{{categories}}}]. Se nenhuma categoria se encaixar perfeitamente, crie uma nova categoria que seja específica e apropriada.
+    *   **Categoria:** Com base na funcionalidade geral do workflow e nos nomes dos nós ([{{#each nodeNames}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}]), classifique-o em uma das seguintes categorias funcionais: [{{{categories}}}]. Se nenhuma categoria se encaixar perfeitamente, crie uma nova categoria que seja específica e apropriada.
+    *   **Nicho de Mercado:** Identifique o nicho de mercado ou área de negócio principal para o qual este workflow é mais útil (ex: "Médico", "Advocacia", "Delivery", "E-commerce", "Imobiliário", "Agência de Marketing"). Seja específico. Se for genérico, use "Produtividade Pessoal".
     *   **Plataformas:** Identifique e liste as principais plataformas, aplicativos ou serviços que são integrados neste workflow (ex: "Notion", "Google Sheets", "Stripe", "Slack").
     *   **Explicação:** Gere uma explicação técnica detalhada, em português, de como o workflow funciona. Descreva cada passo (nó), o que ele faz, e como os dados fluem através do processo. Esta explicação será usada como uma documentação técnica interna ou um "bloco de notas" para desenvolvedores. No final da explicação, adicione em uma nova linha o texto "Para mais automações, siga: instagram.com/kds_brasil".
 

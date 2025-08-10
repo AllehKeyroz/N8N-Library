@@ -52,6 +52,7 @@ export async function getTemplates(): Promise<Template[]> {
         name: data.name,
         description: data.description,
         category: data.category,
+        niche: data.niche || 'N/A', // Handle older documents that might not have niche
         platforms: data.platforms,
         explanation: data.explanation,
         createdAt: createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : '',

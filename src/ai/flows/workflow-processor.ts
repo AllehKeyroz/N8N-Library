@@ -118,8 +118,30 @@ const processWorkflowFlow = ai.defineFlow(
     const translationMap = new Map(
       translatedNodes.translations.map((t) => [t.original, t.translated])
     );
+    
+    // 4. Update connections BEFORE updating node names
+    if (workflow.connections && typeof workflow.connections === 'object') {
+        const updatedConnections: Record<string, any> = {};
 
-    // 4. Update node names and create sticky note in the workflow object
+        for (const sourceNodeName of Object.keys(workflow.connections)) {
+            const translatedSource = translationMap.get(sourceNodeName) || sourceNodeName;
+            const connectionOutputs = workflow.connections[sourceNodeName];
+            
+            updatedConnections[translatedSource] = {};
+
+            for (const outputName of Object.keys(connectionOutputs)) {
+                const destinations = connectionOutputs[outputName];
+                updatedConnections[translatedSource][outputName] = destinations.map((dest: any) => {
+                     const translatedDestNode = translationMap.get(dest.node) || dest.node;
+                     return { ...dest, node: translatedDestNode };
+                });
+            }
+        }
+        workflow.connections = updatedConnections;
+    }
+
+
+    // 5. Update node names and create sticky note in the workflow object
     let minX = Infinity;
     let minY = Infinity;
 
@@ -150,10 +172,10 @@ const processWorkflowFlow = ai.defineFlow(
     workflow.nodes.push(stickyNote);
 
 
-    // 5. Stringify the modified workflow
+    // 6. Stringify the modified workflow
     const translatedWorkflowJson = JSON.stringify(workflow, null, 2);
 
-    // 6. Return the combined result
+    // 7. Return the combined result
     return {
       ...analysisResult,
       translatedWorkflowJson,

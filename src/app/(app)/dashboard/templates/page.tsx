@@ -3,40 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import Image from 'next/image';
 
-const templates = [
-  {
-    name: 'Sincronizar Notion com Google Sheets',
-    description: 'Mantém seus dados do Notion e Google Sheets perfeitamente sincronizados em tempo real.',
-    category: 'Produtividade',
-    platforms: ['Notion', 'Google Sheets'],
-    image: 'https://placehold.co/600x400.png',
-    hint: 'data connection'
-  },
-  {
-    name: 'Automação de Marketing via E-mail',
-    description: 'Envie e-mails de marketing personalizados para novos leads automaticamente.',
-    category: 'Marketing',
-    platforms: ['Brevo', 'Gmail'],
-    image: 'https://placehold.co/600x400.png',
-    hint: 'marketing automation'
-  },
-  {
-    name: 'Notificações de Vendas no Slack',
-    description: 'Receba notificações no Slack para cada nova venda realizada na sua plataforma.',
-    category: 'Vendas',
-    platforms: ['Stripe', 'Slack'],
-    image: 'https://placehold.co/600x400.png',
-    hint: 'sales notification'
-  },
-    {
-    name: 'Gerador de Relatórios da Meta API',
-    description: 'Gera relatórios semanais de performance de campanhas diretamente da Graph API da Meta.',
-    category: 'Marketing',
-    platforms: ['Meta API', 'Google Sheets'],
-    image: 'https://placehold.co/600x400.png',
-    hint: 'api report'
-  },
-];
+const templates: any[] = [];
 
 export default function TemplatesPage() {
   return (
@@ -80,6 +47,11 @@ export default function TemplatesPage() {
           </Card>
         ))}
       </div>
+       {templates.length === 0 && (
+        <div className="text-center col-span-full py-12">
+          <p className="text-muted-foreground">Nenhum template encontrado.</p>
+        </div>
+      )}
     </div>
   );
 }

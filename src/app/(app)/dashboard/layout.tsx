@@ -20,7 +20,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex">
-      <Sidebar>
+      <Sidebar variant="inset">
         <SidebarContent>
           <SidebarHeader>
             <div className="flex items-center gap-2">

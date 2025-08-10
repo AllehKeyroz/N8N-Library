@@ -58,7 +58,7 @@ Tarefas:
     *   **Descrição:** Escreva uma descrição concisa e de alto nível, focada no objetivo e no resultado final do workflow. Ideal para um usuário final entender o valor da automação.
     *   **Categoria:** Analise o workflow e o classifique em uma das seguintes categorias: [{{{categories}}}]. Se nenhuma categoria se encaixar perfeitamente, crie uma nova categoria que seja específica e apropriada.
     *   **Plataformas:** Identifique e liste as principais plataformas, aplicativos ou serviços que são integrados neste workflow (ex: "Notion", "Google Sheets", "Stripe", "Slack").
-    *   **Explicação:** Gere uma explicação técnica detalhada, em português, de como o workflow funciona. Descreva cada passo (nó), o que ele faz, e como os dados fluem através do processo. Esta explicação será usada como uma documentação técnica interna ou um "bloco de notas" para desenvolvedores.
+    *   **Explicação:** Gere uma explicação técnica detalhada, em português, de como o workflow funciona. Descreva cada passo (nó), o que ele faz, e como os dados fluem através do processo. Esta explicação será usada como uma documentação técnica interna ou um "bloco de notas" para desenvolvedores. No final da explicação, adicione em uma nova linha o texto "Para mais automações, siga: instagram.com/kds_brasil".
 
 2.  **Tradução dos Nomes dos Nós:**
     *   Traduza a seguinte lista de nomes de nós para o português do Brasil.
@@ -119,12 +119,36 @@ const processWorkflowFlow = ai.defineFlow(
       translatedNodes.translations.map((t) => [t.original, t.translated])
     );
 
-    // 4. Update node names in the workflow object
+    // 4. Update node names and create sticky note in the workflow object
+    let minX = Infinity;
+    let minY = Infinity;
+
     workflow.nodes.forEach((node: any) => {
       if (node.name && translationMap.has(node.name)) {
         node.name = translationMap.get(node.name);
       }
+      if (node.position) {
+          if(node.position[0] < minX) minX = node.position[0];
+          if(node.position[1] < minY) minY = node.position[1];
+      }
     });
+    
+    // Create and add the sticky note
+    const stickyNote = {
+      parameters: {
+        content: analysisResult.explanation,
+        height: 400,
+        width: 500
+      },
+      id: `sticky-note-${Date.now()}`,
+      name: 'Explicação do Workflow',
+      type: 'n8n-nodes-base.stickyNote',
+      typeVersion: 1,
+      position: [minX - 550, minY],
+    };
+
+    workflow.nodes.push(stickyNote);
+
 
     // 5. Stringify the modified workflow
     const translatedWorkflowJson = JSON.stringify(workflow, null, 2);

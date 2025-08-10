@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import {
   Card,
   CardContent,
@@ -152,9 +153,11 @@ export default function TemplatesPage() {
   const handleDownload = (template: Template) => {
     let jsonString = template.workflowJson;
     try {
+      // Try to parse and re-stringify to format it nicely
       jsonString = JSON.stringify(JSON.parse(template.workflowJson), null, 2);
     } catch (e) {
       console.warn("Could not parse and re-stringify the workflow JSON. Using original string.", e);
+      // If it fails, use the raw string from the DB.
     }
 
     const blob = new Blob([jsonString], { type: 'application/json' });

@@ -1,3 +1,6 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
@@ -6,37 +9,34 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Home, Upload, FileText } from 'lucide-react';
+import { Upload, FileText } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
   return (
     <div className="flex">
       <Sidebar variant="inset">
         <SidebarContent>
           <SidebarHeader>
             <div className="flex items-center gap-2">
-              <SidebarTrigger />
               <h1 className="text-lg font-semibold">N8N Library</h1>
             </div>
           </SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/templates" isActive>
+              <SidebarMenuButton href="/dashboard/templates" isActive={pathname === '/dashboard/templates'}>
                 <FileText />
                 Templates
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/admin">
+              <SidebarMenuButton href="/dashboard/admin" isActive={pathname === '/dashboard/admin'}>
                 <Upload />
                 Admin
               </SidebarMenuButton>

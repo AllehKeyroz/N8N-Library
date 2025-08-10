@@ -93,12 +93,12 @@ export default function TemplatesPage() {
       const file = uploadFiles[0];
       const fileContent = await file.text();
 
-      const result = await processWorkflow({ workflowJson: fileContent });
-      await saveTemplate(result);
+      const aiResult = await processWorkflow({ workflowJson: fileContent });
+      await saveTemplate({ ...aiResult, workflowJson: fileContent });
 
       toast({
         title: 'Template Salvo!',
-        description: `O workflow "${result.name}" foi processado e salvo com sucesso.`,
+        description: `O workflow "${aiResult.name}" foi processado e salvo com sucesso.`,
         variant: 'default',
       });
 
@@ -108,7 +108,7 @@ export default function TemplatesPage() {
     } catch (error: any) {
       console.error('Error processing or saving workflow:', error);
       toast({
-        title: 'Erro no processamento',
+        title: 'Erro no Upload',
         description:
           error.message ||
           'Ocorreu um erro ao processar e salvar o workflow.',

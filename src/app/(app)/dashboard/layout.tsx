@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Sidebar,
@@ -12,8 +13,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
 } from '@/components/ui/sidebar';
-import { FileText, KeyRound, Settings, Cog, KeySquare } from 'lucide-react';
-import Link from 'next/link';
+import { FileText, KeyRound, Cog, KeySquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -67,22 +67,22 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <Link href="/dashboard/templates" passHref>
+              <Link href="/dashboard/templates" passHref legacyBehavior>
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/templates')}>
-                  <>
+                  <a>
                     <FileText />
                     Templates
-                  </>
+                  </a>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/dashboard/credentials" passHref>
+               <Link href="/dashboard/credentials" passHref legacyBehavior>
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/credentials')}>
-                  <>
+                  <a>
                     <KeyRound />
                     Credenciais
-                  </>
+                  </a>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

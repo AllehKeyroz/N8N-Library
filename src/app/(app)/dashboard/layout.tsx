@@ -11,7 +11,7 @@ import {
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
 import { FileText, KeyRound, UploadCloud } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function DashboardLayout({
   children,
@@ -31,16 +31,20 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/templates" isActive={pathname.startsWith('/dashboard/templates')}>
-                <FileText />
-                Templates
-              </SidebarMenuButton>
+              <Link href="/dashboard/templates" passHref>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/templates')}>
+                  <FileText />
+                  Templates
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/credentials" isActive={pathname.startsWith('/dashboard/credentials')}>
-                <KeyRound />
-                Credenciais
-              </SidebarMenuButton>
+              <Link href="/dashboard/credentials" passHref>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/credentials')}>
+                  <KeyRound />
+                  Credenciais
+                </SidebarMenuButton>
+              </Link>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>

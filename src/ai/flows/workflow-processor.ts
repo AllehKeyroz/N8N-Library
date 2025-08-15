@@ -75,12 +75,12 @@ Tarefas:
 2.  **Identificação de Credenciais (Segredos Hardcoded):**
     *   Sua tarefa é encontrar segredos que foram **colados diretamente** no workflow JSON.
     *   Inspecione os parâmetros de cada nó. Procure por nomes de parâmetros comuns para segredos, como \`apiKey\`, \`api_key\`, \`secret\`, \`token\`, \`accessToken\`, \`password\`, \`access_token\`.
-    *   Verifique o valor desses parâmetros. Se o valor **NÃO** for uma expressão do n8n (ou seja, se **NÃO** começar com \`=\`, \`{{\`, ou \`{{\$\`), então você encontrou um segredo hardcoded.
+    *   Verifique o valor desses parâmetros. Se o valor **NÃO** for uma expressão do n8n (ou seja, um valor que não usa a sintaxe de expressão do n8n), então você encontrou um segredo hardcoded.
     *   Para cada segredo hardcoded encontrado:
         1.  Extraia o **nome do parâmetro** como o "nome da credencial" (ex: "apiKey").
         2.  Extraia o **valor literal** do parâmetro como o "valor da credencial".
         3.  Extraia a **plataforma** (o tipo do nó, ex: 'n8n-nodes-base.googleSheets').
-    *   Ignore completamente qualquer valor que seja uma expressão (que comece com \`{{\` ou \`=\`). Seu objetivo é encontrar apenas chaves e senhas estáticas.
+    *   Ignore completamente qualquer valor que seja uma expressão. Seu objetivo é encontrar apenas chaves e senhas estáticas.
 
 3.  **Tradução dos Nomes dos Nós:**
     *   Traduza a seguinte lista de nomes de nós para o português do Brasil.

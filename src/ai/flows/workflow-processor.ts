@@ -74,8 +74,9 @@ Tarefas:
 
 2.  **Identificação de Credenciais:**
     *   Inspecione cada nó no JSON do workflow.
-    *   Identifique todos os nós que utilizam uma credencial para autenticação (geralmente indicado no campo 'credentials').
-    *   Para cada credencial encontrada, extraia o **nome da credencial** (o valor associado à chave 'credential' dentro do objeto de credenciais) e a **plataforma** (o tipo do nó, ex: 'n8n-nodes-base.googleSheets').
+    *   Identifique apenas os nós que utilizam uma credencial REAL para autenticação. Uma credencial real é indicada no campo 'credentials' e contém um objeto que define um segredo, como 'password', 'token', 'apiKey', 'apiToken', 'secret', 'accessKey', etc.
+    *   NÃO considere um nó como credencial se o objeto de credenciais estiver vazio ou não contiver campos de segredo.
+    *   Para cada credencial REAL encontrada, extraia o **nome da credencial** (o valor associado à chave 'credential' dentro do objeto de credenciais) e a **plataforma** (o tipo do nó, ex: 'n8n-nodes-base.googleSheets').
     *   Retorne uma lista de objetos, cada um contendo a 'plataforma' e a 'credencial'.
 
 3.  **Tradução dos Nomes dos Nós:**

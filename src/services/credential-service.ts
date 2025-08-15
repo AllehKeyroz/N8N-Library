@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, Timestamp, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, Timestamp, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import type { CredentialInfo, StoredCredential } from "@/ai/flows/workflow-types";
 
 
@@ -64,5 +64,19 @@ export async function deleteCredential(id: string): Promise<void> {
   } catch (e) {
     console.error("Error deleting credential document: ", e);
     throw new Error("Não foi possível excluir a credencial.");
+  }
+}
+
+export async function deleteMultipleCredentials(ids: string[]): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+    ids.forEach(id => {
+      const credentialDocRef = doc(db, "credentials", id);
+      batch.delete(credentialDocRef);
+    });
+    await batch.commit();
+  } catch (e) {
+    console.error("Error deleting multiple credentials: ", e);
+    throw new Error("Não foi possível excluir as credenciais selecionadas.");
   }
 }

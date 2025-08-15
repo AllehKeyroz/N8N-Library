@@ -6,6 +6,7 @@ import {
   StoredCredential,
   updateCredential,
   deleteCredential,
+  deleteMultipleCredentials,
 } from '@/services/credential-service';
 import {
   Table,
@@ -30,8 +31,7 @@ import {
   Check,
   Trash2,
   Pencil,
-  PlusCircle,
-  Server,
+  X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getPlatformIcon } from '@/lib/utils';
@@ -65,8 +65,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AnimatePresence, motion } from 'framer-motion';
+
 
 type GroupedCredentials = {
   [platform: string]: StoredCredential[];
@@ -88,6 +90,10 @@ export default function CredentialsPage() {
   const [deletingCredentialId, setDeletingCredentialId] = useState<
     string | null
   >(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [selectedCredentialIds, setSelectedCredentialIds] = useState<string[]>([]);
+
 
   async function loadCredentials() {
     try {
@@ -158,41 +164,99 @@ export default function CredentialsPage() {
     setIsDeleteAlertOpen(true);
   };
 
-  const handleDeleteCredential = async () => {
-     if (!deletingCredentialId) return;
-      try {
-        await deleteCredential(deletingCredentialId);
+  const handleDeleteConfirm = async () => {
+    const idsToDelete = deletingCredentialId ? [deletingCredentialId] : selectedCredentialIds;
+    if (idsToDelete.length === 0) return;
+    
+    setIsDeleting(true);
+    try {
+        if (idsToDelete.length > 1) {
+            await deleteMultipleCredentials(idsToDelete);
+        } else {
+            await deleteCredential(idsToDelete[0]);
+        }
         toast({
-          title: 'Credencial Excluída',
-          description: 'A credencial foi removida com sucesso.',
+            title: 'Credencial(is) Excluída(s)',
+            description: `${idsToDelete.length} credencial(is) foram removida(s) com sucesso.`,
         });
-        loadCredentials(); // Refresh data
-      } catch (err: any) {
+        loadCredentials();
+        setSelectedCredentialIds([]);
+    } catch (err: any) {
         toast({
-          title: 'Erro ao Excluir',
-          description: err.message,
-          variant: 'destructive',
+            title: 'Erro ao Excluir',
+            description: err.message,
+            variant: 'destructive',
         });
-      } finally {
+    } finally {
+        setIsDeleting(false);
         setIsDeleteAlertOpen(false);
         setDeletingCredentialId(null);
-      }
+    }
+};
+
+  const toggleCredentialSelection = (id: string) => {
+    setSelectedCredentialIds(prev =>
+      prev.includes(id) ? prev.filter(pId => pId !== id) : [...prev, id]
+    );
   };
 
+  const toggleSelectAllPlatform = (platform: string) => {
+    const platformCredIds = groupedCredentials[platform].map(c => c.id);
+    const allSelected = platformCredIds.every(id => selectedCredentialIds.includes(id));
+
+    if (allSelected) {
+      setSelectedCredentialIds(prev => prev.filter(id => !platformCredIds.includes(id)));
+    } else {
+      setSelectedCredentialIds(prev => [...new Set([...prev, ...platformCredIds])]);
+    }
+  };
 
   const platformOrder = Object.keys(groupedCredentials).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="p-4 md:p-8">
-      <header className="mb-8">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2">
-          Gerenciador de Credenciais
-        </h1>
-        <p className="text-lg text-muted-foreground">
-          Visualize, copie, edite e exclua as credenciais identificadas nos
-          seus templates de workflow.
-        </p>
+      <header className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2">
+            Gerenciador de Credenciais
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Visualize, copie e gerencie as credenciais identificadas nos seus templates.
+          </p>
+        </div>
       </header>
+
+       <AnimatePresence>
+        {selectedCredentialIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="flex items-center gap-4 bg-secondary p-2 rounded-lg mb-8"
+          >
+            <Label className="text-sm font-medium">
+              {selectedCredentialIds.length} selecionado(s)
+            </Label>
+            <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" onClick={() => setDeletingCredentialId(null)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Excluir Selecionados
+                    </Button>
+                </AlertDialogTrigger>
+            </AlertDialog>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedCredentialIds([])}
+              className="h-8 w-8"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
       <Card>
         <CardHeader>
@@ -231,6 +295,7 @@ export default function CredentialsPage() {
               {platformOrder.map((platform) => {
                 const Icon = getPlatformIcon(platform);
                 const creds = groupedCredentials[platform];
+                const areAllInPlatformSelected = creds.every(c => selectedCredentialIds.includes(c.id));
                 return (
                   <AccordionItem value={platform} key={platform}>
                     <AccordionTrigger className="hover:no-underline">
@@ -246,6 +311,13 @@ export default function CredentialsPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="w-[50px]">
+                               <Checkbox
+                                checked={areAllInPlatformSelected}
+                                onCheckedChange={() => toggleSelectAllPlatform(platform)}
+                                aria-label={`Selecionar todas as credenciais para ${platform}`}
+                               />
+                            </TableHead>
                             <TableHead>Nome da Credencial</TableHead>
                             <TableHead>Encontrada no Template</TableHead>
                             <TableHead>Data de Detecção</TableHead>
@@ -254,7 +326,14 @@ export default function CredentialsPage() {
                         </TableHeader>
                         <TableBody>
                           {creds.map((cred) => (
-                            <TableRow key={cred.id}>
+                            <TableRow key={cred.id} data-state={selectedCredentialIds.includes(cred.id) ? 'selected' : 'unselected'}>
+                              <TableCell>
+                                 <Checkbox
+                                  checked={selectedCredentialIds.includes(cred.id)}
+                                  onCheckedChange={() => toggleCredentialSelection(cred.id)}
+                                  aria-label={`Selecionar credencial ${cred.credential}`}
+                                 />
+                              </TableCell>
                               <TableCell>
                                 <Badge variant="outline">
                                   {cred.credential}
@@ -352,13 +431,13 @@ export default function CredentialsPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta ação não pode ser desfeita. Isso excluirá permanentemente a credencial do banco de dados.
+                 Esta ação não pode ser desfeita. Isso excluirá permanentemente a(s) credencial(is) selecionada(s) do banco de dados.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setDeletingCredentialId(null)}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteCredential}>
-                Sim, excluir
+              <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
+                {isDeleting ? 'Excluindo...' : 'Sim, excluir'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

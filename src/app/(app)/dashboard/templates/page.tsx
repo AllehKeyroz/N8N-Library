@@ -118,7 +118,7 @@ export default function TemplatesPage() {
     setUploadFiles(event.target.files);
   };
   
-  const processFileWithRetry = async (file: File, maxRetries = 2, initialDelay = 30000) => {
+  const processFileWithRetry = async (file: File, maxRetries = 5, initialDelay = 10000, delayIncrement = 30000) => {
     let attempt = 0;
     let currentDelay = initialDelay;
 
@@ -148,7 +148,7 @@ export default function TemplatesPage() {
               variant: 'default',
             });
             await new Promise(resolve => setTimeout(resolve, currentDelay));
-            currentDelay *= 2; // Exponential backoff
+            currentDelay += delayIncrement; // Increase delay for next attempt
           } else {
             console.error(`Error processing ${file.name} after ${maxRetries} retries:`, error);
             toast({

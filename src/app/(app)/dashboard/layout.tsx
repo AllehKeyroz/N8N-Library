@@ -33,16 +33,20 @@ export default function DashboardLayout({
             <SidebarMenuItem>
               <Link href="/dashboard/templates" passHref>
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/templates')}>
-                  <FileText />
-                  Templates
+                  <>
+                    <FileText />
+                    Templates
+                  </>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
              <SidebarMenuItem>
               <Link href="/dashboard/credentials" passHref>
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/credentials')}>
-                  <KeyRound />
-                  Credenciais
+                  <>
+                    <KeyRound />
+                    Credenciais
+                  </>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

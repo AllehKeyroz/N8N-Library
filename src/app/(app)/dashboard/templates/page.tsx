@@ -273,7 +273,7 @@ export default function TemplatesPage() {
     <div className="p-4 md:p-8">
       <header className="mb-8">
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-center">
-          Templates de Automação de Workflow
+          {!loading && templates.length > 0 ? `${templates.length} ` : ''}Templates de Automação de Workflow
         </h1>
         <div className="max-w-xl mx-auto">
           <div className="relative">

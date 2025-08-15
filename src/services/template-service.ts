@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, where, doc, deleteDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, where, doc, deleteDoc, Timestamp, writeBatch } from "firebase/firestore";
 import type { ProcessWorkflowOutput } from "@/ai/flows/workflow-types";
 import { createHash } from 'crypto';
 

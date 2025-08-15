@@ -7,11 +7,13 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { saveCredential } from '@/services/credential-service';
 import {
   ProcessWorkflowInput,
   ProcessWorkflowInputSchema,
   ProcessWorkflowOutput,
   ProcessWorkflowOutputSchema,
+  CredentialInfoSchema
 } from './workflow-types';
 
 export async function processWorkflow(
@@ -43,9 +45,10 @@ const analysisPrompt = ai.definePrompt({
         translatedWorkflowJson: true,
       }),
       translatedNodes: TranslatedNamesSchema,
+      credentials: z.array(CredentialInfoSchema).describe("Uma lista de credenciais identificadas no workflow."),
     }),
   },
-  prompt: `Você é um especialista em n8n e automação de processos de negócios. Sua tarefa é analisar o JSON de um workflow do n8n, extrair informações importantes e traduzir os nomes dos nós.
+  prompt: `Você é um especialista em n8n e automação de processos de negócios. Sua tarefa é analisar o JSON de um workflow do n8n, extrair informações importantes, traduzir os nomes dos nós e identificar as credenciais utilizadas.
 
 Analise o seguinte workflow:
 \`\`\`json
@@ -54,14 +57,20 @@ Analise o seguinte workflow:
 
 Tarefas:
 1.  **Análise de Metadados:**
-    *   **Nome:** Crie um nome curto, específico e objetivo para o workflow (máximo 50 caracteres). Evite termos genéricos como "Automação" ou "Workflow". Exemplo: "Sincronizar Pedidos do Stripe com Notion".
+    *   **Nome:** Crie um nome curto, específico e objetivo para o workflow (máximo 60 caracteres). Evite termos genéricos como "Automação" ou "Workflow". Exemplo: "Sincronizar Pedidos do Stripe com Notion".
     *   **Descrição:** Escreva uma descrição concisa e de alto nível, focada no objetivo e no resultado final do workflow. Ideal para um usuário final entender o valor da automação.
     *   **Categoria:** Com base na funcionalidade geral do workflow e nos nomes dos nós ([{{#each nodeNames}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}]), classifique-o em uma das seguintes categorias funcionais: [{{{categories}}}]. Se nenhuma categoria se encaixar perfeitamente, crie uma nova categoria que seja específica e apropriada.
     *   **Nicho de Mercado:** Identifique o nicho de mercado ou área de negócio principal para o qual este workflow é mais útil (ex: "Médico", "Advocacia", "Delivery", "E-commerce", "Imobiliário", "Agência de Marketing"). Seja específico. Se for genérico, use "Produtividade Pessoal".
     *   **Plataformas:** Identifique e liste as principais plataformas, aplicativos ou serviços que são integrados neste workflow (ex: "Notion", "Google Sheets", "Stripe", "Slack").
     *   **Explicação:** Gere uma explicação técnica detalhada, em português, de como o workflow funciona. Descreva cada passo (nó), o que ele faz, e como os dados fluem através do processo. Esta explicação será usada como uma documentação técnica interna ou um "bloco de notas" para desenvolvedores. No final da explicação, adicione em uma nova linha o texto "Para mais automações, siga: instagram.com/kds_brasil".
 
-2.  **Tradução dos Nomes dos Nós:**
+2.  **Identificação de Credenciais:**
+    *   Inspecione cada nó no JSON do workflow.
+    *   Identifique todos os nós que utilizam uma credencial para autenticação (geralmente indicado no campo 'credentials').
+    *   Para cada credencial encontrada, extraia o **nome da credencial** (o valor associado à chave 'credential' dentro do objeto de credenciais) e a **plataforma** (o tipo do nó, ex: 'n8n-nodes-base.googleSheets').
+    *   Retorne uma lista de objetos, cada um contendo a 'plataforma' e a 'credencial'.
+
+3.  **Tradução dos Nomes dos Nós:**
     *   Traduza a seguinte lista de nomes de nós para o português do Brasil.
     *   Retorne o resultado como um array de objetos, onde cada objeto tem uma chave "original" e uma "translated".
     *   **Nomes para traduzir:** [{{#each nodeNames}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}]
@@ -75,10 +84,8 @@ const processWorkflowFlow = ai.defineFlow(
     outputSchema: ProcessWorkflowOutputSchema,
   },
   async (input) => {
-    // 1. Parse the workflow JSON
     let workflow;
     try {
-      // Clean the input string to remove potential BOM characters
       const cleanedJson = input.workflowJson.trim().replace(/^\uFEFF/, '');
       workflow = JSON.parse(cleanedJson);
     } catch (error) {
@@ -98,31 +105,36 @@ const processWorkflowFlow = ai.defineFlow(
       'Produtividade',
     ];
 
-    // Extract node names to be translated
     const nodeNamesToTranslate = workflow.nodes
       .map((node: any) => node.name)
       .filter((name: any) => typeof name === 'string' && name.trim() !== '');
 
-    // 2. Run the unified analysis and translation prompt
     const {output} = await analysisPrompt({
       workflowJson: input.workflowJson,
       categories: categories,
       nodeNames: nodeNamesToTranslate,
     });
 
-    if (!output || !output.analysis || !output.translatedNodes) {
-      throw new Error('A IA não conseguiu analisar e traduzir o workflow.');
+    if (!output || !output.analysis || !output.translatedNodes || !output.credentials) {
+      throw new Error('A IA não conseguiu analisar o workflow completamente.');
     }
 
-    const { analysis: analysisResult, translatedNodes } = output;
+    const { analysis: analysisResult, translatedNodes, credentials } = output;
 
+    // Save credentials to the database in the background (fire and forget)
+    if (credentials.length > 0) {
+      credentials.forEach(cred => {
+        saveCredential({
+          ...cred,
+          templateName: analysisResult.name, // Use the name generated by the AI
+        }).catch(err => console.error("Failed to save credential:", err));
+      });
+    }
 
-    // 3. Create a map for quick translation lookup
     const translationMap = new Map(
       translatedNodes.translations.map((t) => [t.original, t.translated])
     );
     
-    // 4. Update connections BEFORE updating node names
     if (workflow.connections && typeof workflow.connections === 'object') {
       const originalConnections = JSON.parse(JSON.stringify(workflow.connections));
       const updatedConnections: Record<string, any> = {};
@@ -134,7 +146,6 @@ const processWorkflowFlow = ai.defineFlow(
         updatedConnections[translatedSource] = {};
 
         for (const outputName of Object.keys(sourceOutputs)) {
-          // Each output (e.g., 'main', 'done', 'loop') is an array of destination arrays.
           const destinationGroups = sourceOutputs[outputName];
           if (Array.isArray(destinationGroups)) {
              updatedConnections[translatedSource][outputName] = destinationGroups.map((destGroup: any) => {
@@ -144,7 +155,7 @@ const processWorkflowFlow = ai.defineFlow(
                        return { ...dest, node: translatedDestNode };
                     });
                 }
-                return destGroup; // Should not happen based on n8n structure, but safe to keep.
+                return destGroup;
              });
           }
         }
@@ -152,8 +163,6 @@ const processWorkflowFlow = ai.defineFlow(
       workflow.connections = updatedConnections;
     }
 
-
-    // 5. Update node names and create sticky note in the workflow object
     let minX = Infinity;
     let minY = Infinity;
 
@@ -167,7 +176,6 @@ const processWorkflowFlow = ai.defineFlow(
       }
     });
     
-    // Create and add the sticky note
     const stickyNote = {
       parameters: {
         content: analysisResult.explanation,
@@ -183,11 +191,8 @@ const processWorkflowFlow = ai.defineFlow(
 
     workflow.nodes.push(stickyNote);
 
-
-    // 6. Stringify the modified workflow
     const translatedWorkflowJson = JSON.stringify(workflow, null, 2);
 
-    // 7. Return the combined result
     return {
       ...analysisResult,
       translatedWorkflowJson,

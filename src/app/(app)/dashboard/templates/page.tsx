@@ -20,6 +20,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Briefcase,
+  X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
@@ -57,6 +58,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPlatformIcon } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AnimatePresence, motion } from 'framer-motion';
 
 
 const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Suporte", "Finanças", "RH", "Produtividade"];
@@ -72,13 +75,16 @@ export default function TemplatesPage() {
   const [uploadLoading, setUploadLoading] = useState(false);
   const { toast } = useToast();
 
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+  const [viewingTemplate, setViewingTemplate] = useState<Template | null>(
     null
   );
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([]);
+
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
 
 
   async function loadTemplates() {
@@ -215,8 +221,13 @@ export default function TemplatesPage() {
   };
 
 
-  const handleTemplateClick = (template: Template) => {
-    setSelectedTemplate(template);
+  const handleTemplateClick = (template: Template, e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    // Prevent opening the dialog if the checkbox or its label is clicked
+    if (target.closest('[data-role="selection-checkbox"]')) {
+      return;
+    }
+    setViewingTemplate(template);
   };
 
   const handleDownload = (template: Template) => {
@@ -245,33 +256,55 @@ export default function TemplatesPage() {
     });
   };
 
-  const handleDelete = async (templateId: string) => {
+  const handleDeleteConfirm = async () => {
+    const idsToDelete = deletingTemplateId ? [deletingTemplateId] : selectedTemplateIds;
+    if (idsToDelete.length === 0) return;
+
     setIsDeleting(true);
     try {
-      await deleteTemplate(templateId);
+      await Promise.all(idsToDelete.map(id => deleteTemplate(id)));
+      
       toast({
-        title: 'Template Excluído',
-        description: 'O template foi excluído com sucesso.',
+        title: `Template(s) Excluído(s)`,
+        description: `${idsToDelete.length} template(s) foram excluídos com sucesso.`,
         variant: 'default',
       });
-      setSelectedTemplate(null); 
-      await loadTemplates(); 
+
+      await loadTemplates(); // Refresh list
+      setSelectedTemplateIds([]); // Clear selection
+      
     } catch (error: any) {
       toast({
         title: 'Erro ao Excluir',
-        description: error.message || 'Não foi possível excluir o template.',
+        description: error.message || 'Não foi possível excluir o(s) template(s).',
         variant: 'destructive',
       });
     } finally {
       setIsDeleting(false);
+      setDeletingTemplateId(null);
     }
   };
+
+  const toggleTemplateSelection = (id: string) => {
+    setSelectedTemplateIds(prev =>
+      prev.includes(id) ? prev.filter(pId => pId !== id) : [...prev, id]
+    );
+  };
+  
+  const toggleSelectAll = () => {
+    if (selectedTemplateIds.length === templatesToDisplay.length) {
+      setSelectedTemplateIds([]);
+    } else {
+      setSelectedTemplateIds(templatesToDisplay.map(t => t.id));
+    }
+  };
+
 
   const templatesToDisplay = searchQuery ? filteredTemplates : templates;
 
   return (
     <div className="p-4 md:p-8">
-      <header className="mb-8">
+      <header className="mb-4">
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-center">
           {!loading && templates.length > 0 ? `${templates.length} ` : ''}Templates de Automação de Workflow
         </h1>
@@ -288,13 +321,67 @@ export default function TemplatesPage() {
         </div>
       </header>
 
-      <div className="mb-8 flex items-center justify-between">
-         <h2 className="text-2xl font-semibold tracking-tight">Templates em Destaque</h2>
+      <div className="mb-8 flex items-center justify-between min-h-[52px]">
+        <AnimatePresence>
+          {selectedTemplateIds.length > 0 && (
+             <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex items-center gap-4 bg-secondary p-2 rounded-lg"
+            >
+              <div className="flex items-center gap-2">
+                 <Checkbox 
+                   id="select-all"
+                   checked={selectedTemplateIds.length === templatesToDisplay.length}
+                   onCheckedChange={toggleSelectAll}
+                 />
+                 <Label htmlFor="select-all" className="text-sm font-medium">
+                   {selectedTemplateIds.length} selecionado(s)
+                 </Label>
+               </div>
+               <AlertDialog>
+                 <AlertDialogTrigger asChild>
+                   <Button variant="destructive" size="sm">
+                     <Trash2 className="mr-2 h-4 w-4" />
+                     Excluir
+                   </Button>
+                 </AlertDialogTrigger>
+                 <AlertDialogContent>
+                   <AlertDialogHeader>
+                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                     <AlertDialogDescription>
+                       Esta ação não pode ser desfeita. Isso excluirá permanentemente os {selectedTemplateIds.length} templates selecionados.
+                     </AlertDialogDescription>
+                   </AlertDialogHeader>
+                   <AlertDialogFooter>
+                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                     <AlertDialogAction
+                       onClick={handleDeleteConfirm}
+                       disabled={isDeleting}
+                     >
+                       {isDeleting ? 'Excluindo...' : `Sim, Excluir ${selectedTemplateIds.length} Itens`}
+                     </AlertDialogAction>
+                   </AlertDialogFooter>
+                 </AlertDialogContent>
+               </AlertDialog>
+               <Button variant="ghost" size="icon" onClick={() => setSelectedTemplateIds([])} className="h-8 w-8">
+                 <X className="h-4 w-4" />
+               </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        {selectedTemplateIds.length === 0 && (
+          <h2 className="text-2xl font-semibold tracking-tight">Templates em Destaque</h2>
+        )}
+
         <Button onClick={() => setIsUploadDialogOpen(true)}>
           <UploadCloud className="mr-2" />
           Fazer Upload
         </Button>
       </div>
+
 
       {loading ? (
         <div className="flex justify-center items-center col-span-full py-12">
@@ -316,10 +403,17 @@ export default function TemplatesPage() {
           {templatesToDisplay.map((template) => (
             <Card
               key={template.id}
-              className="flex flex-col hover:shadow-lg transition-shadow cursor-pointer bg-secondary border-muted/50"
-              onClick={() => handleTemplateClick(template)}
+              className={`flex flex-col hover:shadow-lg transition-shadow cursor-pointer bg-secondary border-muted/50 ${selectedTemplateIds.includes(template.id) ? 'border-primary' : ''}`}
+              onClick={(e) => handleTemplateClick(template, e)}
             >
-              <CardContent className="p-4 flex flex-col h-full">
+              <CardContent className="p-4 flex flex-col h-full relative">
+                 <div data-role="selection-checkbox" className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedTemplateIds.includes(template.id)}
+                      onCheckedChange={() => toggleTemplateSelection(template.id)}
+                      aria-label={`Selecionar template ${template.name}`}
+                    />
+                 </div>
                  <div className="flex items-center gap-2 mb-4">
                     {template.platforms.slice(0, 5).map((platform) => {
                       const Icon = getPlatformIcon(platform);
@@ -407,31 +501,31 @@ export default function TemplatesPage() {
 
       {/* Template Detail Dialog */}
       <Dialog
-        open={!!selectedTemplate}
+        open={!!viewingTemplate}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            setSelectedTemplate(null);
+            setViewingTemplate(null);
           }
         }}
       >
         <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-          {selectedTemplate && (
+          {viewingTemplate && (
             <>
               <DialogHeader>
                 <DialogTitle className="text-2xl">
-                  {selectedTemplate.name}
+                  {viewingTemplate.name}
                 </DialogTitle>
               </DialogHeader>
               <div className="flex-grow overflow-y-auto pr-6 -mr-6">
                   <DialogDescription className="pt-2 text-base">
-                    {selectedTemplate.description}
+                    {viewingTemplate.description}
                   </DialogDescription>
                   <div className="py-4 space-y-4">
                     <div className="flex items-start gap-8">
                         <div>
                           <h3 className="font-semibold mb-2">Plataformas</h3>
                           <div className="flex flex-wrap gap-2">
-                            {selectedTemplate.platforms.map((platform) => (
+                            {viewingTemplate.platforms.map((platform) => (
                               <span
                                 key={platform}
                                 className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
@@ -448,7 +542,7 @@ export default function TemplatesPage() {
                                 className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
                               >
                                <Briefcase className="h-4 w-4" />
-                                {selectedTemplate.niche}
+                                {viewingTemplate.niche}
                               </span>
                           </div>
                          <div className="flex-shrink-0">
@@ -457,7 +551,7 @@ export default function TemplatesPage() {
                                 className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
                               >
                                <Tag className="h-4 w-4" />
-                                {selectedTemplate.category}
+                                {viewingTemplate.category}
                               </span>
                           </div>
                     </div>
@@ -470,7 +564,7 @@ export default function TemplatesPage() {
                         <AccordionContent>
                           <ScrollArea className="h-72 w-full">
                              <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap pr-4">
-                               {selectedTemplate.explanation}
+                               {viewingTemplate.explanation}
                              </div>
                           </ScrollArea>
                         </AccordionContent>
@@ -481,7 +575,7 @@ export default function TemplatesPage() {
               <DialogFooter className="pt-4 flex-shrink-0 sm:justify-between">
                  <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive">
+                       <Button variant="destructive" onClick={() => setDeletingTemplateId(viewingTemplate.id)}>
                         <Trash2 className="mr-2" />
                         Excluir
                       </Button>
@@ -495,9 +589,9 @@ export default function TemplatesPage() {
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel onClick={() => setDeletingTemplateId(null)}>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => handleDelete(selectedTemplate.id)}
+                          onClick={handleDeleteConfirm}
                           disabled={isDeleting}
                         >
                           {isDeleting ? 'Excluindo...' : 'Sim, Excluir'}
@@ -508,11 +602,11 @@ export default function TemplatesPage() {
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => setSelectedTemplate(null)}
+                    onClick={() => setViewingTemplate(null)}
                   >
                     Fechar
                   </Button>
-                  <Button onClick={() => handleDownload(selectedTemplate)}>
+                  <Button onClick={() => handleDownload(viewingTemplate)}>
                     <Download className="mr-2" />
                     Baixar Template
                   </Button>

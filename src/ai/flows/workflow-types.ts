@@ -24,3 +24,17 @@ export const ProcessWorkflowOutputSchema = z.object({
   translatedWorkflowJson: z.string().describe('O workflow JSON completo com os nomes dos nós traduzidos para o português.'),
 });
 export type ProcessWorkflowOutput = z.infer<typeof ProcessWorkflowOutputSchema>;
+
+
+export const CredentialInfoSchema = z.object({
+  platform: z.string().describe("A plataforma ou tipo de nó que usa a credencial (ex: 'n8n-nodes-base.googleSheets')."),
+  credential: z.string().describe("O nome da credencial usada (ex: 'My Google API')."),
+});
+export type CredentialInfo = z.infer<typeof CredentialInfoSchema>;
+
+export const StoredCredentialSchema = CredentialInfoSchema.extend({
+  id: z.string(),
+  templateName: z.string().describe("O nome do template onde a credencial foi encontrada."),
+  createdAt: z.string(),
+});
+export type StoredCredential = z.infer<typeof StoredCredentialSchema>;

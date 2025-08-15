@@ -75,12 +75,11 @@ Tarefas:
 2.  **Identificação de Credenciais:**
     *   Inspecione cada nó no JSON do workflow.
     *   Identifique os nós que utilizam uma credencial REAL para autenticação.
-    *   Uma credencial real é indicada no campo 'credentials' e contém um objeto que define um segredo.
-    *   O critério para uma credencial real é a existência de um valor de placeholder que comece com \`{{$credentials\` dentro das propriedades do nó.
+    *   O critério para uma credencial real é a existência de um valor de placeholder que comece **especificamente com \`{{$credentials\`** dentro das propriedades do nó. Ignore quaisquer outras expressões ou referências a outros nós (como \`{{$node...}}\`).
     *   Para cada credencial encontrada:
-        1. Extraia o **nome da credencial** (o valor associado à chave 'credential' dentro do objeto de credenciais, ex: "Google Gemini(PaLM) Api account").
-        2. Extraia a **plataforma** (o tipo do nó, ex: 'n8n-nodes-base.googleSheets').
-        3. Extraia o **valor placeholder** exato (ex: \`{{$credentials.googleApi.apiKey}}\`).
+        1.  Extraia o **nome da credencial** (o valor associado à chave 'credential' dentro do objeto de credenciais, ex: "Google Gemini(PaLM) Api account").
+        2.  Extraia a **plataforma** (o tipo do nó, ex: 'n8n-nodes-base.googleSheets').
+        3.  Extraia o **valor placeholder** exato (ex: \`{{$credentials.googleApi.apiKey}}\`). O valor não pode estar em branco.
     *   Retorne uma lista de objetos, cada um contendo 'platforma', 'credencial' e 'value'.
 
 3.  **Tradução dos Nomes dos Nós:**
@@ -134,7 +133,7 @@ const processWorkflowFlow = ai.defineFlow(
       );
       analysisOptions.config = {apiKey: input.apiKey};
     } else {
-      analysisOptions.model = googleAI.model('gemini-2.0-flash');
+      analysisOptions.model = googleAI.model('gemini-1.5-flash');
     }
 
     const {output} = await analysisPrompt(
@@ -237,3 +236,5 @@ const processWorkflowFlow = ai.defineFlow(
     };
   }
 );
+
+    

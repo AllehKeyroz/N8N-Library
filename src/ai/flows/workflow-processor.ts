@@ -72,14 +72,15 @@ Tarefas:
     *   **Plataformas:** Identifique e liste as principais plataformas, aplicativos ou serviços que são integrados neste workflow (ex: "Notion", "Google Sheets", "Stripe", "Slack").
     *   **Explicação:** Gere uma explicação técnica detalhada, em português, de como o workflow funciona. Descreva cada passo (nó), o que ele faz, e como os dados fluem através do processo. Esta explicação será usada como uma documentação técnica interna ou um "bloco de notas" para desenvolvedores. No final da explicação, adicione em uma nova linha o texto "Para mais automações, siga: instagram.com/kds_brasil".
 
-2.  **Identificação de Credenciais:**
-    *   Inspecione cada nó no JSON do workflow.
-    *   Identifique os nós que utilizam uma credencial REAL para autenticação.
-    *   O critério para uma credencial real é a existência de um valor de placeholder que utilize o cofre de credenciais do n8n (iniciando com '$credentials'). Ignore quaisquer outras expressões ou referências a outros nós.
-    *   Para cada credencial encontrada:
-        1.  Extraia o **nome da credencial** (o valor associado à chave 'credential' dentro do objeto de credenciais, ex: "Google Gemini(PaLM) Api account").
-        2.  Extraia a **plataforma** (o tipo do nó, ex: 'n8n-nodes-base.googleSheets').
-        3.  Extraia o **valor placeholder** exato (ex: \`{{$credentials.googleApi.apiKey}}\`). O valor não pode estar em branco.
+2.  **Identificação de Credenciais (Segredos Hardcoded):**
+    *   Sua tarefa é encontrar segredos que foram **colados diretamente** no workflow JSON.
+    *   Inspecione os parâmetros de cada nó. Procure por nomes de parâmetros comuns para segredos, como \`apiKey\`, \`api_key\`, \`secret\`, \`token\`, \`accessToken\`, \`password\`, \`access_token\`.
+    *   Verifique o valor desses parâmetros. Se o valor **NÃO** for uma expressão do n8n (ou seja, se **NÃO** começar com \`=\`, \`{{\`, ou \`{{\$\`), então você encontrou um segredo hardcoded.
+    *   Para cada segredo hardcoded encontrado:
+        1.  Extraia o **nome do parâmetro** como o "nome da credencial" (ex: "apiKey").
+        2.  Extraia o **valor literal** do parâmetro como o "valor da credencial".
+        3.  Extraia a **plataforma** (o tipo do nó, ex: 'n8n-nodes-base.googleSheets').
+    *   Ignore completamente qualquer valor que seja uma expressão (que comece com \`{{\` ou \`=\`). Seu objetivo é encontrar apenas chaves e senhas estáticas.
 
 3.  **Tradução dos Nomes dos Nós:**
     *   Traduza a seguinte lista de nomes de nós para o português do Brasil.
@@ -156,13 +157,12 @@ const processWorkflowFlow = ai.defineFlow(
 
     // Filter credentials and save them
     if (credentials && credentials.length > 0) {
-      const validCredentials = credentials.filter(cred =>
-        cred.value &&
-        cred.value.trim() !== '' &&
-        cred.value.toLowerCase() !== 'n/a' &&
-        cred.value.trim().startsWith('{{$credentials')
-      );
-
+      const validCredentials = credentials.filter(cred => {
+        const value = cred.value || '';
+        const isExpression = value.startsWith('{{') || value.startsWith('={{');
+        return value.trim() !== '' && value.toLowerCase() !== 'n/a' && !isExpression;
+      });
+      
       validCredentials.forEach((cred) => {
         saveCredential({
           ...cred,

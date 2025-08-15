@@ -11,6 +11,7 @@ import {z} from 'genkit';
 
 export const ProcessWorkflowInputSchema = z.object({
   workflowJson: z.string().describe('O conteúdo JSON de um workflow do n8n.'),
+  apiKey: z.string().optional().describe('Chave de API opcional do Google AI para usar um modelo mais poderoso.'),
 });
 export type ProcessWorkflowInput = z.infer<typeof ProcessWorkflowInputSchema>;
 

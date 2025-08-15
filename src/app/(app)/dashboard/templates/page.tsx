@@ -21,6 +21,7 @@ import {
   ArrowUpFromLine,
   Briefcase,
   X,
+  Workflow,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
@@ -60,9 +61,11 @@ import { getPlatformIcon } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AnimatePresence, motion } from 'framer-motion';
+import { WorkflowVisualizer } from '@/components/workflow-visualizer';
 
 
 const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Suporte", "Finanças", "RH", "Produtividade"];
+const API_KEY_STORAGE_KEY = 'google-ai-api-key';
 
 
 export default function TemplatesPage() {
@@ -127,11 +130,12 @@ export default function TemplatesPage() {
   const processFileWithRetry = async (file: File, maxRetries = 5, initialDelay = 10000, delayIncrement = 30000) => {
     let attempt = 0;
     let currentDelay = initialDelay;
+    const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY) || undefined;
 
     while (attempt <= maxRetries) {
       try {
         const fileContent = await file.text();
-        const aiResult = await processWorkflow({ workflowJson: fileContent });
+        const aiResult = await processWorkflow({ workflowJson: fileContent, apiKey });
         const { translatedWorkflowJson, ...restOfAiResult } = aiResult;
         
         await saveTemplate({ ...restOfAiResult, workflowJson: translatedWorkflowJson });
@@ -145,7 +149,7 @@ export default function TemplatesPage() {
         return; // Success, exit the loop
       } catch (error: any) {
         // Check if it's a rate limit error (429)
-        if (error.message && error.message.includes('429')) {
+        if (error.message && (error.message.includes('429') || error.message.toLowerCase().includes('rate limit'))) {
           attempt++;
           if (attempt <= maxRetries) {
             toast({
@@ -243,7 +247,6 @@ export default function TemplatesPage() {
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
     a.download = `${template.name.replace(/\s+/g, '_').toLowerCase()}.json`;
     document.body.appendChild(a);
     a.click();
@@ -333,7 +336,7 @@ export default function TemplatesPage() {
               <div className="flex items-center gap-2">
                  <Checkbox 
                    id="select-all"
-                   checked={selectedTemplateIds.length === templatesToDisplay.length}
+                   checked={selectedTemplateIds.length === templatesToDisplay.length && templatesToDisplay.length > 0}
                    onCheckedChange={toggleSelectAll}
                  />
                  <Label htmlFor="select-all" className="text-sm font-medium">
@@ -403,7 +406,7 @@ export default function TemplatesPage() {
           {templatesToDisplay.map((template) => (
             <Card
               key={template.id}
-              className={`flex flex-col hover:shadow-lg transition-shadow cursor-pointer bg-secondary border-muted/50 ${selectedTemplateIds.includes(template.id) ? 'border-primary' : ''}`}
+              className={`flex flex-col hover:shadow-lg transition-shadow cursor-pointer bg-secondary/50 border-transparent hover:border-primary/50 ${selectedTemplateIds.includes(template.id) ? 'border-primary shadow-lg' : ''}`}
               onClick={(e) => handleTemplateClick(template, e)}
             >
               <CardContent className="p-4 flex flex-col h-full relative">
@@ -508,7 +511,7 @@ export default function TemplatesPage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
           {viewingTemplate && (
             <>
               <DialogHeader>
@@ -555,7 +558,7 @@ export default function TemplatesPage() {
                               </span>
                           </div>
                     </div>
-                    <Accordion type="single" collapsible>
+                    <Accordion type="single" collapsible className="w-full">
                       <AccordionItem value="explanation">
                         <AccordionTrigger>
                           <FileText className="mr-2" />
@@ -569,6 +572,15 @@ export default function TemplatesPage() {
                           </ScrollArea>
                         </AccordionContent>
                       </AccordionItem>
+                      <AccordionItem value="visualization">
+                         <AccordionTrigger>
+                           <Workflow className="mr-2" />
+                           Visualização do Workflow
+                         </AccordionTrigger>
+                         <AccordionContent>
+                            <WorkflowVisualizer workflowJson={viewingTemplate.workflowJson} />
+                         </AccordionContent>
+                       </AccordionItem>
                     </Accordion>
                   </div>
               </div>

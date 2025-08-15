@@ -33,6 +33,7 @@ export async function getCredentials(): Promise<StoredCredential[]> {
         id: doc.id,
         platform: data.platform,
         credential: data.credential,
+        value: data.value,
         templateName: data.templateName,
         createdAt: createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : new Date().toISOString(),
       } as StoredCredential;

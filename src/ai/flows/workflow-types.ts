@@ -33,6 +33,7 @@ export type ProcessWorkflowOutput = z.infer<typeof ProcessWorkflowOutputSchema>;
 export const CredentialInfoSchema = z.object({
   platform: z.string().describe("A plataforma ou tipo de nó que usa a credencial (ex: 'n8n-nodes-base.googleSheets')."),
   credential: z.string().describe("O nome da credencial usada (ex: 'My Google API')."),
+  value: z.string().describe("O valor placeholder da credencial (ex: '{{$credentials.googleApi.apiKey}}')."),
 });
 export type CredentialInfo = z.infer<typeof CredentialInfoSchema>;
 

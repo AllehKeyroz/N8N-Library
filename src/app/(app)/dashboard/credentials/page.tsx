@@ -32,6 +32,7 @@ import {
   Trash2,
   Pencil,
   X,
+  Code,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getPlatformIcon, getCleanPlatformName } from '@/lib/utils';
@@ -132,6 +133,10 @@ export default function CredentialsPage() {
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
+    toast({
+        title: 'Valor Copiado!',
+        description: `O valor "${text}" foi copiado para a área de transferência.`,
+    });
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -274,13 +279,13 @@ export default function CredentialsPage() {
               </Label>
             </div>
 
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Excluir Selecionados
-                </Button>
-              </AlertDialogTrigger>
+            <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+                <AlertDialogTrigger asChild>
+                     <Button variant="destructive" size="sm">
+                       <Trash2 className="mr-2 h-4 w-4" />
+                       Excluir Selecionados
+                     </Button>
+                </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
@@ -351,14 +356,14 @@ export default function CredentialsPage() {
                 return (
                   <AccordionItem value={platform} key={platform}>
                     <div className="flex items-center hover:bg-muted/50 rounded-md">
-                        <div className="pl-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="pl-4 py-4" onClick={(e) => e.stopPropagation()}>
                            <Checkbox
                                 checked={areAllInPlatformSelected}
                                 onCheckedChange={() => toggleSelectAllPlatform(platform)}
                                 aria-label={`Selecionar todas as credenciais para ${platform}`}
                            />
                         </div>
-                        <AccordionTrigger className="flex-grow pr-2 pl-2 py-4">
+                        <AccordionTrigger className="flex-grow pr-2 pl-2 py-0">
                           <div className="flex items-center gap-3 flex-grow">
                             <Icon className="h-6 w-6 text-primary" />
                             <span className="text-lg font-semibold">
@@ -367,17 +372,18 @@ export default function CredentialsPage() {
                             <Badge variant="secondary">{creds.length}</Badge>
                           </div>
                         </AccordionTrigger>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-destructive mr-4"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDeletePlatformAlert(platform);
-                          }}
-                        >
-                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                         <div className="pr-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => {
+                                openDeletePlatformAlert(platform);
+                              }}
+                            >
+                               <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
                     <AccordionContent>
                       <Table>
@@ -386,7 +392,7 @@ export default function CredentialsPage() {
                             <TableHead className="w-[50px]">
                                {/* Empty header for spacing */}
                             </TableHead>
-                            <TableHead>Nome da Credencial</TableHead>
+                            <TableHead>Valor da Credencial</TableHead>
                             <TableHead>Encontrada no Template</TableHead>
                             <TableHead>Data de Detecção</TableHead>
                             <TableHead className="text-right">Ações</TableHead>
@@ -403,9 +409,13 @@ export default function CredentialsPage() {
                                  />
                               </TableCell>
                               <TableCell>
-                                <Badge variant="outline">
-                                  {cred.credential}
-                                </Badge>
+                                <div className='flex items-center gap-2'>
+                                  <Code className='h-4 w-4 text-primary'/>
+                                  <Badge variant="outline" className='font-mono'>
+                                    {cred.value || 'N/A'}
+                                  </Badge>
+                                </div>
+                                <p className='text-xs text-muted-foreground mt-1 pl-1'>{cred.credential}</p>
                               </TableCell>
                               <TableCell className="text-muted-foreground">
                                 {cred.templateName}
@@ -423,7 +433,7 @@ export default function CredentialsPage() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() =>
-                                      handleCopy(cred.credential, cred.id)
+                                      handleCopy(cred.value, cred.id)
                                     }
                                   >
                                     {copiedId === cred.id ? (
@@ -468,7 +478,7 @@ export default function CredentialsPage() {
           <DialogHeader>
             <DialogTitle>Editar Nome da Credencial</DialogTitle>
             <DialogDescription>
-              Altere o nome da credencial. Isso será atualizado apenas no banco de dados para sua organização.
+              Altere o nome descritivo da credencial. O valor real não será alterado.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

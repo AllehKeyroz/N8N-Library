@@ -34,7 +34,7 @@ export async function savePendingTemplate(workflowJson: string): Promise<string>
       workflowJson,
       originalWorkflowHash,
       createdAt: serverTimestamp(),
-       name: 'Pendente...',
+       name: 'Processando...',
        description: 'Este workflow está na fila para ser processado pela IA.',
        category: 'N/A',
        niche: 'N/A',

@@ -90,7 +90,10 @@ export default function TemplatesPage() {
 
   const loadTemplates = useCallback(async () => {
     try {
-      setLoading(true);
+      // Don't set loading to true on polls, only on initial load
+      if (loading) { 
+        setLoading(true);
+      }
       const fetchedTemplates = await getTemplates();
       setTemplates(fetchedTemplates);
       setError(null);
@@ -98,9 +101,11 @@ export default function TemplatesPage() {
       setError(err.message || 'Falha ao carregar templates.');
       console.error(err);
     } finally {
-      setLoading(false);
+      if (loading) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [loading]);
 
   useEffect(() => {
     loadTemplates();
@@ -154,17 +159,38 @@ export default function TemplatesPage() {
             filesToUpload.map(file => file.text().then(content => ({ content, name: file.name })))
         );
 
+        let successCount = 0;
+        let errorCount = 0;
+
         for (const file of fileContents) {
-            await savePendingTemplate(file.content);
+            try {
+                await savePendingTemplate(file.content);
+                successCount++;
+            } catch (err: any) {
+                console.error(`Failed to queue ${file.name}:`, err);
+                errorCount++;
+                 toast({
+                    title: `Erro ao Enfileirar ${file.name}`,
+                    description: err.message,
+                    variant: 'destructive',
+                });
+            }
         }
+        
+        if (successCount > 0) {
+            // Trigger the backend processing queue
+            const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+            await fetch('/api/process-queue', { 
+                method: 'POST',
+                headers: apiKey ? { 'x-api-key': apiKey } : {}
+            });
 
-        // Trigger the backend processing queue
-        await fetch('/api/process-queue', { method: 'POST' });
-
-        toast({
-            title: 'Upload Concluído!',
-            description: `${filesToUpload.length} workflow(s) foram enviados para processamento em segundo plano. A lista será atualizada em breve.`,
-        });
+             toast({
+                title: 'Upload Concluído!',
+                description: `${successCount} workflow(s) foram enviados para processamento em segundo plano. A lista será atualizada em breve.`,
+            });
+            loadTemplates(); // Immediate refresh to show pending templates
+        }
 
         // Reset state
         setFilesToUpload([]);
@@ -172,7 +198,6 @@ export default function TemplatesPage() {
             uploadInputRef.current.value = '';
         }
         setIsUploadDialogOpen(false);
-        loadTemplates(); // Immediate refresh to show pending templates
 
     } catch (error: any) {
         console.error("Upload error:", error);
@@ -193,6 +218,14 @@ export default function TemplatesPage() {
     const target = e.target as HTMLElement;
     // Prevent opening the dialog if the checkbox or its label is clicked
     if (target.closest('[data-role="selection-checkbox"]')) {
+      return;
+    }
+     if (template.status !== 'PROCESSED') {
+      toast({
+        title: 'Processamento em Andamento',
+        description: 'Os detalhes completos estarão disponíveis quando o processamento terminar.',
+        variant: 'default',
+      });
       return;
     }
     setViewingTemplate(template);
@@ -288,6 +321,7 @@ export default function TemplatesPage() {
       case 'PROCESSED':
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       case 'PENDING':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
       case 'PROCESSING':
         return <LoaderCircle className="h-4 w-4 animate-spin text-yellow-500" />;
       case 'FAILED':
@@ -422,7 +456,7 @@ export default function TemplatesPage() {
                 selectedTemplateIds.includes(template.id)
                   ? 'border-primary shadow-lg'
                   : ''
-              } ${template.status !== 'PROCESSED' ? 'opacity-60' : ''}`}
+              } ${template.status !== 'PROCESSED' ? 'opacity-60 cursor-not-allowed' : ''}`}
               onClick={(e) => handleTemplateClick(template, e)}
             >
               <CardContent className="p-4 flex flex-col h-full relative">
@@ -452,7 +486,7 @@ export default function TemplatesPage() {
                   {template.name || 'Processando...'}
                 </h3>
                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-auto">
-                   <div className="flex items-center gap-1.5">
+                   <div className="flex items-center gap-1.5" title={template.status}>
                       {getStatusIcon(template.status)}
                       <span className="capitalize">{template.status.toLowerCase()}</span>
                    </div>

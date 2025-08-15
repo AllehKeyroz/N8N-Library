@@ -65,7 +65,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -259,15 +258,25 @@ export default function CredentialsPage() {
             </Label>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" onClick={() => {
-                  setDeletingCredentialId(null);
-                  setDeletingPlatform(null);
-                  setIsDeleteAlertOpen(true);
-                }}>
+                <Button variant="destructive" size="sm">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Excluir Selecionados
                 </Button>
               </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação não pode ser desfeita. Isso excluirá permanentemente a(s) {selectedCredentialIds.length} credencial(is) selecionada(s) do banco de dados.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
+                      {isDeleting ? 'Excluindo...' : 'Sim, excluir'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
             </AlertDialog>
             <Button
               variant="ghost"
@@ -323,36 +332,41 @@ export default function CredentialsPage() {
                 const areAllInPlatformSelected = creds.every(c => selectedCredentialIds.includes(c.id));
                 return (
                   <AccordionItem value={platform} key={platform}>
-                    <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-center gap-3 flex-grow">
-                        <Icon className="h-6 w-6 text-primary" />
-                        <span className="text-lg font-semibold">
-                          {platform}
-                        </span>
-                        <Badge variant="secondary">{creds.length}</Badge>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive mr-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDeletePlatformAlert(platform);
-                        }}
-                      >
-                         <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AccordionTrigger>
+                    <div className="flex items-center hover:bg-muted/50 rounded-md">
+                        <div className="pl-4" onClick={(e) => e.stopPropagation()}>
+                           <Checkbox
+                                checked={areAllInPlatformSelected}
+                                onCheckedChange={() => toggleSelectAllPlatform(platform)}
+                                aria-label={`Selecionar todas as credenciais para ${platform}`}
+                           />
+                        </div>
+                        <AccordionTrigger className="flex-grow pr-4 pl-2 py-4">
+                          <div className="flex items-center gap-3 flex-grow">
+                            <Icon className="h-6 w-6 text-primary" />
+                            <span className="text-lg font-semibold">
+                              {platform}
+                            </span>
+                            <Badge variant="secondary">{creds.length}</Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-destructive mr-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeletePlatformAlert(platform);
+                            }}
+                          >
+                             <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AccordionTrigger>
+                    </div>
                     <AccordionContent>
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-[50px]">
-                               <Checkbox
-                                checked={areAllInPlatformSelected}
-                                onCheckedChange={() => toggleSelectAllPlatform(platform)}
-                                aria-label={`Selecionar todas as credenciais para ${platform}`}
-                               />
+                               {/* Empty header for spacing */}
                             </TableHead>
                             <TableHead>Nome da Credencial</TableHead>
                             <TableHead>Encontrada no Template</TableHead>

@@ -75,7 +75,7 @@ Tarefas:
 2.  **Identificação de Credenciais:**
     *   Inspecione cada nó no JSON do workflow.
     *   Identifique os nós que utilizam uma credencial REAL para autenticação.
-    *   O critério para uma credencial real é a existência de um valor de placeholder que comece **especificamente com '{{{$credentials'** dentro das propriedades do nó. Ignore quaisquer outras expressões ou referências a outros nós.
+    *   O critério para uma credencial real é a existência de um valor de placeholder que utilize o cofre de credenciais do n8n (iniciando com '$credentials'). Ignore quaisquer outras expressões ou referências a outros nós.
     *   Para cada credencial encontrada:
         1.  Extraia o **nome da credencial** (o valor associado à chave 'credential' dentro do objeto de credenciais, ex: "Google Gemini(PaLM) Api account").
         2.  Extraia a **plataforma** (o tipo do nó, ex: 'n8n-nodes-base.googleSheets').

@@ -34,7 +34,7 @@ import {
   X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { getPlatformIcon } from '@/lib/utils';
+import { getPlatformIcon, getCleanPlatformName } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -91,6 +91,8 @@ export default function CredentialsPage() {
   const [deletingCredentialId, setDeletingCredentialId] = useState<
     string | null
   >(null);
+  const [deletingPlatform, setDeletingPlatform] = useState<string | null>(null);
+
   const [isDeleting, setIsDeleting] = useState(false);
   
   const [selectedCredentialIds, setSelectedCredentialIds] = useState<string[]>([]);
@@ -118,11 +120,11 @@ export default function CredentialsPage() {
 
   const groupedCredentials = useMemo(() => {
     return credentials.reduce((acc, cred) => {
-      const { platform } = cred;
-      if (!acc[platform]) {
-        acc[platform] = [];
+      const cleanPlatform = getCleanPlatformName(cred.platform);
+      if (!acc[cleanPlatform]) {
+        acc[cleanPlatform] = [];
       }
-      acc[platform].push(cred);
+      acc[cleanPlatform].push(cred);
       return acc;
     }, {} as GroupedCredentials);
   }, [credentials]);
@@ -162,11 +164,27 @@ export default function CredentialsPage() {
   
   const openDeleteAlert = (id: string) => {
     setDeletingCredentialId(id);
+    setDeletingPlatform(null);
     setIsDeleteAlertOpen(true);
   };
+  
+  const openDeletePlatformAlert = (platform: string) => {
+    setDeletingPlatform(platform);
+    setDeletingCredentialId(null);
+    setIsDeleteAlertOpen(true);
+};
+
 
   const handleDeleteConfirm = async () => {
-    const idsToDelete = deletingCredentialId ? [deletingCredentialId] : selectedCredentialIds;
+    let idsToDelete: string[] = [];
+    if (deletingPlatform) {
+        idsToDelete = groupedCredentials[deletingPlatform].map(c => c.id);
+    } else if (deletingCredentialId) {
+        idsToDelete = [deletingCredentialId];
+    } else {
+        idsToDelete = selectedCredentialIds;
+    }
+
     if (idsToDelete.length === 0) return;
     
     setIsDeleting(true);
@@ -192,6 +210,7 @@ export default function CredentialsPage() {
         setIsDeleting(false);
         setIsDeleteAlertOpen(false);
         setDeletingCredentialId(null);
+        setDeletingPlatform(null);
     }
 };
 
@@ -238,13 +257,17 @@ export default function CredentialsPage() {
             <Label className="text-sm font-medium">
               {selectedCredentialIds.length} selecionado(s)
             </Label>
-            <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
-                <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" onClick={() => setDeletingCredentialId(null)}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Excluir Selecionados
-                    </Button>
-                </AlertDialogTrigger>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" onClick={() => {
+                  setDeletingCredentialId(null);
+                  setDeletingPlatform(null);
+                  setIsDeleteAlertOpen(true);
+                }}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir Selecionados
+                </Button>
+              </AlertDialogTrigger>
             </AlertDialog>
             <Button
               variant="ghost"
@@ -294,19 +317,31 @@ export default function CredentialsPage() {
           ) : (
             <Accordion type="multiple" className="w-full">
               {platformOrder.map((platform) => {
-                const Icon = getPlatformIcon(platform);
+                const originalPlatformName = groupedCredentials[platform][0].platform;
+                const Icon = getPlatformIcon(originalPlatformName);
                 const creds = groupedCredentials[platform];
                 const areAllInPlatformSelected = creds.every(c => selectedCredentialIds.includes(c.id));
                 return (
                   <AccordionItem value={platform} key={platform}>
                     <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-grow">
                         <Icon className="h-6 w-6 text-primary" />
                         <span className="text-lg font-semibold">
                           {platform}
                         </span>
                         <Badge variant="secondary">{creds.length}</Badge>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-destructive mr-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDeletePlatformAlert(platform);
+                        }}
+                      >
+                         <Trash2 className="h-4 w-4" />
+                      </Button>
                     </AccordionTrigger>
                     <AccordionContent>
                       <Table>
@@ -432,11 +467,19 @@ export default function CredentialsPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
               <AlertDialogDescription>
-                 Esta ação não pode ser desfeita. Isso excluirá permanentemente a(s) credencial(is) selecionada(s) do banco de dados.
+                 {deletingPlatform 
+                    ? `Esta ação excluirá permanentemente todas as ${groupedCredentials[deletingPlatform]?.length || 0} credenciais da plataforma "${deletingPlatform}".`
+                    : "Esta ação não pode ser desfeita. Isso excluirá permanentemente a(s) credencial(is) selecionada(s) do banco de dados."
+                 }
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setDeletingCredentialId(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => {
+                setDeletingCredentialId(null);
+                setDeletingPlatform(null);
+              }}>
+                Cancelar
+              </AlertDialogCancel>
               <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
                 {isDeleting ? 'Excluindo...' : 'Sim, excluir'}
               </AlertDialogAction>

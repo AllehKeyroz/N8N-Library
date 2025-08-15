@@ -61,7 +61,6 @@ import { getPlatformIcon } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AnimatePresence, motion } from 'framer-motion';
-import { WorkflowVisualizer } from '@/components/workflow-visualizer';
 
 
 const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Suporte", "Finanças", "RH", "Produtividade"];
@@ -572,15 +571,6 @@ export default function TemplatesPage() {
                           </ScrollArea>
                         </AccordionContent>
                       </AccordionItem>
-                      <AccordionItem value="visualization">
-                         <AccordionTrigger>
-                           <Workflow className="mr-2" />
-                           Visualização do Workflow
-                         </AccordionTrigger>
-                         <AccordionContent>
-                            <WorkflowVisualizer workflowJson={viewingTemplate.workflowJson} />
-                         </AccordionContent>
-                       </AccordionItem>
                     </Accordion>
                   </div>
               </div>

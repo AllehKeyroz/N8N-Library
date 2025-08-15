@@ -230,6 +230,15 @@ export default function CredentialsPage() {
       setSelectedCredentialIds(prev => [...new Set([...prev, ...platformCredIds])]);
     }
   };
+  
+    const toggleSelectAll = () => {
+    if (selectedCredentialIds.length === credentials.length) {
+      setSelectedCredentialIds([]);
+    } else {
+      setSelectedCredentialIds(credentials.map(c => c.id));
+    }
+  };
+
 
   const platformOrder = Object.keys(groupedCredentials).sort((a, b) => a.localeCompare(b));
 
@@ -254,9 +263,17 @@ export default function CredentialsPage() {
             exit={{ opacity: 0, y: -20 }}
             className="flex items-center gap-4 bg-secondary p-2 rounded-lg mb-8"
           >
-            <Label className="text-sm font-medium">
-              {selectedCredentialIds.length} selecionado(s)
-            </Label>
+             <div className="flex items-center gap-2">
+              <Checkbox
+                id="select-all"
+                checked={selectedCredentialIds.length === credentials.length && credentials.length > 0}
+                onCheckedChange={toggleSelectAll}
+              />
+              <Label htmlFor="select-all" className="text-sm font-medium">
+                {selectedCredentialIds.length} selecionado(s)
+              </Label>
+            </div>
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm">

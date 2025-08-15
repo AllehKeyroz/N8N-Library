@@ -54,7 +54,7 @@ export async function processPendingTemplates(apiKey?: string): Promise<{ proces
     const q = query(
         collection(db, "templates"), 
         where("status", "==", "PENDING"),
-        limit(5) // Process up to 5 at a time to avoid timeouts
+        limit(1) // Process one at a time
     );
     const pendingDocs = await getDocs(q);
 

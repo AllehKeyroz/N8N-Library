@@ -28,7 +28,7 @@ import {
   getTemplates,
   Template,
   deleteTemplate,
-  savePendingTemplate,
+  processAndSaveTemplate,
 } from '@/services/template-service';
 import { Button } from '@/components/ui/button';
 import {
@@ -64,6 +64,7 @@ import { getPlatformIcon } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Progress } from '@/components/ui/progress';
 
 const API_KEY_STORAGE_KEY = 'google-ai-api-key';
 
@@ -75,6 +76,9 @@ const statusOrder: { [key in Template['status']]: number } = {
   FAILED: 3,
 };
 
+// Helper to introduce a delay
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +87,9 @@ export default function TemplatesPage() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
   const { toast } = useToast();
 
@@ -98,16 +105,14 @@ export default function TemplatesPage() {
 
   const loadTemplates = useCallback(async () => {
     try {
-      // Don't set loading to true on polls, only on initial load
-      if (templates.length === 0) { 
-        setLoading(true);
-      }
+      setLoading(true);
       const fetchedTemplates = await getTemplates();
-      // Sort templates by status order
+      // Sort templates by status order, then by creation date
       const sortedTemplates = fetchedTemplates.sort((a, b) => {
         const orderA = statusOrder[a.status] ?? 99;
         const orderB = statusOrder[b.status] ?? 99;
-        return orderA - orderB;
+        if (orderA !== orderB) return orderA - orderB;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
       setTemplates(sortedTemplates);
       setError(null);
@@ -115,23 +120,12 @@ export default function TemplatesPage() {
       setError(err.message || 'Falha ao carregar templates.');
       console.error(err);
     } finally {
-      if (loading) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [templates.length, loading]);
+  }, []);
 
   useEffect(() => {
     loadTemplates();
-     // Set up a poller to refresh templates every 30 seconds
-    const interval = setInterval(() => {
-        // Only poll if the user is on the page
-        if (document.visibilityState === 'visible') {
-            loadTemplates();
-        }
-    }, 30000);
-
-    return () => clearInterval(interval);
   }, [loadTemplates]);
 
 
@@ -153,6 +147,7 @@ export default function TemplatesPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       setFilesToUpload(Array.from(event.target.files));
+      setUploadProgress(0);
     }
   };
 
@@ -168,61 +163,64 @@ export default function TemplatesPage() {
     }
     setUploadLoading(true);
 
-    try {
-        const fileContents = await Promise.all(
-            filesToUpload.map(file => file.text().then(content => ({ content, name: file.name })))
-        );
+    const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    const processDelay = apiKey ? 3000 : 10000;
+    
+    let successCount = 0;
+    let errorCount = 0;
 
-        let successCount = 0;
-        let errorCount = 0;
+    for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        setUploadStatus(`Processando ${i + 1} de ${filesToUpload.length}: ${file.name}...`);
+        
+        try {
+            const workflowJson = await file.text();
+            await processAndSaveTemplate(workflowJson, apiKey || undefined);
+            successCount++;
+            toast({
+                title: 'Template Processado com Sucesso!',
+                description: `O workflow "${file.name}" foi importado.`,
+            });
 
-        for (const file of fileContents) {
-            try {
-                await savePendingTemplate(file.content);
-                successCount++;
-            } catch (err: any) {
-                console.error(`Failed to queue ${file.name}:`, err);
-                errorCount++;
-                 toast({
-                    title: `Erro ao Enfileirar ${file.name}`,
-                    description: err.message,
-                    variant: 'destructive',
-                });
-            }
+        } catch (err: any) {
+            console.error(`Falha ao processar ${file.name}:`, err);
+            errorCount++;
+            toast({
+                title: `Erro ao Processar "${file.name}"`,
+                description: err.message,
+                variant: 'destructive',
+            });
         }
         
-        if (successCount > 0) {
-            // Trigger the backend processing queue
-            const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-            await fetch('/api/process-queue', { 
-                method: 'POST',
-                headers: apiKey ? { 'x-api-key': apiKey } : {}
-            });
+        setUploadProgress(((i + 1) / filesToUpload.length) * 100);
 
-             toast({
-                title: 'Upload Concluído!',
-                description: `${successCount} workflow(s) foram enviados para processamento em segundo plano. A lista será atualizada em breve.`,
-            });
-            loadTemplates(); // Immediate refresh to show pending templates
+        // Wait before processing the next file, unless it's the last one
+        if (i < filesToUpload.length - 1) {
+            await delay(processDelay);
         }
+    }
 
-        // Reset state
+    setUploadStatus(
+        `Concluído! ${successCount} templates importados, ${errorCount} falharam.`
+    );
+    
+    // Refresh the list after all uploads are done
+    await loadTemplates(); 
+
+    // Reset state after a short delay to allow user to see the final message
+    setTimeout(() => {
+        setUploadLoading(false);
         setFilesToUpload([]);
+        setUploadProgress(0);
+        setUploadStatus('');
         if (uploadInputRef.current) {
             uploadInputRef.current.value = '';
         }
-        setIsUploadDialogOpen(false);
-
-    } catch (error: any) {
-        console.error("Upload error:", error);
-        toast({
-            title: 'Erro no Upload',
-            description: error.message || 'Ocorreu uma falha ao enviar os arquivos.',
-            variant: 'destructive',
-        });
-    } finally {
-        setUploadLoading(false);
-    }
+        // Only close if there were no errors
+        if (errorCount === 0) {
+           setIsUploadDialogOpen(false);
+        }
+    }, 4000);
   };
 
   const handleTemplateClick = (
@@ -470,7 +468,7 @@ export default function TemplatesPage() {
                 selectedTemplateIds.includes(template.id)
                   ? 'border-primary shadow-lg'
                   : ''
-              } ${template.status !== 'PROCESSED' ? 'opacity-60 cursor-not-allowed' : ''}`}
+              } ${template.status !== 'PROCESSED' ? 'opacity-60' : ''}`}
               onClick={(e) => handleTemplateClick(template, e)}
             >
               <CardContent className="p-4 flex flex-col h-full relative">
@@ -517,7 +515,7 @@ export default function TemplatesPage() {
           <DialogHeader>
             <DialogTitle>Upload de Workflow</DialogTitle>
             <DialogDescription>
-              Selecione um ou mais arquivos JSON. Eles serão salvos e processados em segundo plano.
+              Selecione um ou mais arquivos JSON. Eles serão processados um a um.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUploadSubmit} className="space-y-6 py-4">
@@ -545,7 +543,7 @@ export default function TemplatesPage() {
                   ref={uploadInputRef}
                 />
               </div>
-              {filesToUpload.length > 0 && (
+              {filesToUpload.length > 0 && !uploadLoading && (
                 <div className="text-sm text-muted-foreground pt-2">
                   {filesToUpload.length} arquivo(s) selecionado(s):{' '}
                   <ul>
@@ -560,10 +558,18 @@ export default function TemplatesPage() {
                   </ul>
                 </div>
               )}
+               {uploadLoading && (
+                 <div className="space-y-2 pt-4">
+                    <Progress value={uploadProgress} className="w-full" />
+                    <p className="text-sm text-muted-foreground text-center animate-pulse">
+                        {uploadStatus}
+                    </p>
+                 </div>
+               )}
             </div>
             <div className="flex justify-end gap-2">
               <DialogClose asChild>
-                <Button type="button" variant="outline">
+                <Button type="button" variant="outline" disabled={uploadLoading}>
                   Cancelar
                 </Button>
               </DialogClose>
@@ -577,8 +583,8 @@ export default function TemplatesPage() {
                   <UploadCloud className="mr-2" />
                 )}
                 {uploadLoading
-                  ? 'Enviando...'
-                  : `Enviar ${filesToUpload.length} Arquivo(s)`}
+                  ? 'Processando...'
+                  : `Enviar e Processar ${filesToUpload.length} Arquivo(s)`}
               </Button>
             </div>
           </form>

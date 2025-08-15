@@ -65,6 +65,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -340,7 +341,7 @@ export default function CredentialsPage() {
                                 aria-label={`Selecionar todas as credenciais para ${platform}`}
                            />
                         </div>
-                        <AccordionTrigger className="flex-grow pr-4 pl-2 py-4">
+                        <AccordionTrigger className="flex-grow pr-2 pl-2 py-4">
                           <div className="flex items-center gap-3 flex-grow">
                             <Icon className="h-6 w-6 text-primary" />
                             <span className="text-lg font-semibold">
@@ -348,18 +349,18 @@ export default function CredentialsPage() {
                             </span>
                             <Badge variant="secondary">{creds.length}</Badge>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-destructive mr-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDeletePlatformAlert(platform);
-                            }}
-                          >
-                             <Trash2 className="h-4 w-4" />
-                          </Button>
                         </AccordionTrigger>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive mr-4"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDeletePlatformAlert(platform);
+                          }}
+                        >
+                           <Trash2 className="h-4 w-4" />
+                        </Button>
                     </div>
                     <AccordionContent>
                       <Table>

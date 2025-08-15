@@ -17,7 +17,8 @@ export async function processAndSaveTemplate(workflowJson: string, apiKey?: stri
   const originalWorkflowHash = createHash('sha256').update(workflowJson).digest('hex');
   const qOriginal = query(
     collection(db, "templates"),
-    where("originalWorkflowHash", "==", originalWorkflowHash)
+    where("originalWorkflowHash", "==", originalWorkflowHash),
+    limit(1)
   );
   const originalSnapshot = await getDocs(qOriginal);
   if (!originalSnapshot.empty) {
@@ -33,7 +34,8 @@ export async function processAndSaveTemplate(workflowJson: string, apiKey?: stri
   // 3. Check for translated hash duplicate
   const qTranslated = query(
       collection(db, "templates"), 
-      where("translatedWorkflowHash", "==", aiResult.translatedWorkflowHash)
+      where("translatedWorkflowHash", "==", aiResult.translatedWorkflowHash),
+      limit(1)
   );
   const translatedSnapshot = await getDocs(qTranslated);
   if (!translatedSnapshot.empty) {

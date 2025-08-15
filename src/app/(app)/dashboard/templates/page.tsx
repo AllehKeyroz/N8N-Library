@@ -181,8 +181,11 @@ export default function TemplatesPage() {
                 title: 'Template Processado com Sucesso!',
                 description: `O workflow "${file.name}" foi importado.`,
             });
+            // Refresh list in real-time
+            await loadTemplates(); 
 
-        } catch (err: any) {
+        } catch (err: any)
+        {
             console.error(`Falha ao processar ${file.name}:`, err);
             errorCount++;
             toast({
@@ -204,9 +207,6 @@ export default function TemplatesPage() {
         `Concluído! ${successCount} templates importados, ${errorCount} falharam.`
     );
     
-    // Refresh the list after all uploads are done
-    await loadTemplates(); 
-
     // Reset state after a short delay to allow user to see the final message
     setTimeout(() => {
         setUploadLoading(false);

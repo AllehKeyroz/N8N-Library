@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, Timestamp, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import type { CredentialInfo, StoredCredential } from "@/ai/flows/workflow-types";
 
 
@@ -41,5 +41,28 @@ export async function getCredentials(): Promise<StoredCredential[]> {
   } catch (e) {
     console.error("Error getting credential documents: ", e);
     throw new Error("Não foi possível buscar as credenciais do banco de dados.");
+  }
+}
+
+export async function updateCredential(id: string, newName: string): Promise<void> {
+  try {
+    const credentialDocRef = doc(db, "credentials", id);
+    await updateDoc(credentialDocRef, {
+      credential: newName
+    });
+  } catch (e) {
+    console.error("Error updating credential document: ", e);
+    throw new Error("Não foi possível atualizar a credencial.");
+  }
+}
+
+
+export async function deleteCredential(id: string): Promise<void> {
+  try {
+    const credentialDocRef = doc(db, "credentials", id);
+    await deleteDoc(credentialDocRef);
+  } catch (e) {
+    console.error("Error deleting credential document: ", e);
+    throw new Error("Não foi possível excluir a credencial.");
   }
 }

@@ -16,16 +16,20 @@ import {
   FileText,
   Trash2,
   Tag,
-  Server,
-  ArrowDownToLine,
-  ArrowUpFromLine,
   Briefcase,
   X,
-  Workflow,
   AlertTriangle,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
-import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import {
+  getTemplates,
+  Template,
+  deleteTemplate,
+  savePendingTemplate,
+} from '@/services/template-service';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -49,8 +53,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { processWorkflow } from '@/ai/flows/workflow-processor';
-import { saveTemplate } from '@/services/template-service';
 import {
   Accordion,
   AccordionContent,
@@ -63,10 +65,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AnimatePresence, motion } from 'framer-motion';
 
-
-const categories = ["IA", "Vendas", "Operações de TI", "Marketing", "Operações de Documentos", "Suporte", "Finanças", "RH", "Produtividade"];
 const API_KEY_STORAGE_KEY = 'google-ai-api-key';
-
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -76,22 +75,20 @@ export default function TemplatesPage() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
-  const [filesInQueue, setFilesInQueue] = useState<File[]>([]);
+  const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
   const { toast } = useToast();
 
-  const [viewingTemplate, setViewingTemplate] = useState<Template | null>(
+  const [viewingTemplate, setViewingTemplate] = useState<Template | null>(null);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(
     null
   );
-  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([]);
-
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
 
-
-  async function loadTemplates() {
+  const loadTemplates = useCallback(async () => {
     try {
       setLoading(true);
       const fetchedTemplates = await getTemplates();
@@ -103,68 +100,20 @@ export default function TemplatesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadTemplates();
-  }, []);
-  
-  // Queue processing logic
-  useEffect(() => {
-    if (filesInQueue.length === 0 || uploadLoading) {
-      return;
-    }
-
-    setUploadLoading(true);
-    const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-    const delay = apiKey ? 3000 : 10000; // 3 seconds with key, 10 seconds without
-
-    toast({
-        title: 'Processamento em Fila Iniciado',
-        description: `Processando ${filesInQueue.length} arquivo(s) com um intervalo de ${delay / 1000} segundos.`,
-        variant: 'default',
-    });
-
-    const processQueue = async () => {
-        for (const file of filesInQueue) {
-            try {
-                const fileContent = await file.text();
-                const aiResult = await processWorkflow({ workflowJson: fileContent, apiKey: apiKey || undefined });
-                await saveTemplate(aiResult);
-                toast({
-                    title: `Sucesso: "${file.name}"`,
-                    description: `O workflow "${aiResult.name}" foi salvo.`,
-                    variant: 'default',
-                });
-            } catch (error: any) {
-                console.error(`Error processing ${file.name}:`, error);
-                toast({
-                    title: `Erro em "${file.name}"`,
-                    description: error.message || 'Ocorreu um erro ao processar este arquivo.',
-                    variant: 'destructive',
-                });
-            }
-            // Wait for the specified delay before processing the next file
-            await new Promise(resolve => setTimeout(resolve, delay));
+     // Set up a poller to refresh templates every 30 seconds
+    const interval = setInterval(() => {
+        // Only poll if the user is on the page
+        if (document.visibilityState === 'visible') {
+            loadTemplates();
         }
-        
-        // After processing all files
-        setFilesInQueue([]);
-        setUploadLoading(false);
-        if (uploadInputRef.current) {
-            uploadInputRef.current.value = '';
-        }
-        await loadTemplates();
-        toast({
-            title: 'Processamento da Fila Concluído',
-            description: 'Todos os arquivos foram processados.',
-            variant: 'default',
-        });
-    };
+    }, 30000);
 
-    processQueue();
-
-  }, [filesInQueue, uploadLoading, toast]);
+    return () => clearInterval(interval);
+  }, [loadTemplates]);
 
 
   useEffect(() => {
@@ -184,15 +133,13 @@ export default function TemplatesPage() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      setFilesInQueue(Array.from(event.target.files));
+      setFilesToUpload(Array.from(event.target.files));
     }
   };
-  
-  const handleUploadSubmit = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
+
+  const handleUploadSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (filesInQueue.length === 0) {
+    if (filesToUpload.length === 0) {
       toast({
         title: 'Nenhum arquivo selecionado',
         description: 'Por favor, selecione um ou mais arquivos JSON.',
@@ -200,10 +147,49 @@ export default function TemplatesPage() {
       });
       return;
     }
-    setIsUploadDialogOpen(false); // Close dialog and let useEffect handle the queue
+    setUploadLoading(true);
+
+    try {
+        const fileContents = await Promise.all(
+            filesToUpload.map(file => file.text().then(content => ({ content, name: file.name })))
+        );
+
+        for (const file of fileContents) {
+            await savePendingTemplate(file.content);
+        }
+
+        // Trigger the backend processing queue
+        await fetch('/api/process-queue', { method: 'POST' });
+
+        toast({
+            title: 'Upload Concluído!',
+            description: `${filesToUpload.length} workflow(s) foram enviados para processamento em segundo plano. A lista será atualizada em breve.`,
+        });
+
+        // Reset state
+        setFilesToUpload([]);
+        if (uploadInputRef.current) {
+            uploadInputRef.current.value = '';
+        }
+        setIsUploadDialogOpen(false);
+        loadTemplates(); // Immediate refresh to show pending templates
+
+    } catch (error: any) {
+        console.error("Upload error:", error);
+        toast({
+            title: 'Erro no Upload',
+            description: error.message || 'Ocorreu uma falha ao enviar os arquivos.',
+            variant: 'destructive',
+        });
+    } finally {
+        setUploadLoading(false);
+    }
   };
 
-  const handleTemplateClick = (template: Template, e: React.MouseEvent<HTMLDivElement>) => {
+  const handleTemplateClick = (
+    template: Template,
+    e: React.MouseEvent<HTMLDivElement>
+  ) => {
     const target = e.target as HTMLElement;
     // Prevent opening the dialog if the checkbox or its label is clicked
     if (target.closest('[data-role="selection-checkbox"]')) {
@@ -214,20 +200,23 @@ export default function TemplatesPage() {
 
   const handleDownload = (template: Template) => {
     if (!template.translatedWorkflowJson) {
-         toast({
-            title: 'Erro no Download',
-            description: `O JSON traduzido para "${template.name}" não foi encontrado.`,
-            variant: 'destructive',
-        });
-        return;
+      toast({
+        title: 'Erro no Download',
+        description: `O JSON traduzido para "${template.name}" não foi encontrado.`,
+        variant: 'destructive',
+      });
+      return;
     }
-    
+
     let jsonString = template.translatedWorkflowJson;
     try {
       // Try to parse and re-stringify to format it nicely
       jsonString = JSON.stringify(JSON.parse(jsonString), null, 2);
     } catch (e) {
-      console.warn("Could not parse and re-stringify the workflow JSON. Using original string.", e);
+      console.warn(
+        'Could not parse and re-stringify the workflow JSON. Using original string.',
+        e
+      );
       // If it fails, use the raw string from the DB.
     }
 
@@ -248,13 +237,15 @@ export default function TemplatesPage() {
   };
 
   const handleDeleteConfirm = async () => {
-    const idsToDelete = deletingTemplateId ? [deletingTemplateId] : selectedTemplateIds;
+    const idsToDelete = deletingTemplateId
+      ? [deletingTemplateId]
+      : selectedTemplateIds;
     if (idsToDelete.length === 0) return;
 
     setIsDeleting(true);
     try {
-      await Promise.all(idsToDelete.map(id => deleteTemplate(id)));
-      
+      await Promise.all(idsToDelete.map((id) => deleteTemplate(id)));
+
       toast({
         title: `Template(s) Excluído(s)`,
         description: `${idsToDelete.length} template(s) foram excluídos com sucesso.`,
@@ -263,11 +254,11 @@ export default function TemplatesPage() {
 
       await loadTemplates(); // Refresh list
       setSelectedTemplateIds([]); // Clear selection
-      
     } catch (error: any) {
       toast({
         title: 'Erro ao Excluir',
-        description: error.message || 'Não foi possível excluir o(s) template(s).',
+        description:
+          error.message || 'Não foi possível excluir o(s) template(s).',
         variant: 'destructive',
       });
     } finally {
@@ -277,27 +268,43 @@ export default function TemplatesPage() {
   };
 
   const toggleTemplateSelection = (id: string) => {
-    setSelectedTemplateIds(prev =>
-      prev.includes(id) ? prev.filter(pId => pId !== id) : [...prev, id]
+    setSelectedTemplateIds((prev) =>
+      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id]
     );
   };
-  
+
   const toggleSelectAll = () => {
     if (selectedTemplateIds.length === templatesToDisplay.length) {
       setSelectedTemplateIds([]);
     } else {
-      setSelectedTemplateIds(templatesToDisplay.map(t => t.id));
+      setSelectedTemplateIds(templatesToDisplay.map((t) => t.id));
     }
   };
 
-
   const templatesToDisplay = searchQuery ? filteredTemplates : templates;
+
+  const getStatusIcon = (status: Template['status']) => {
+    switch (status) {
+      case 'PROCESSED':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'PENDING':
+      case 'PROCESSING':
+        return <LoaderCircle className="h-4 w-4 animate-spin text-yellow-500" />;
+      case 'FAILED':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
 
   return (
     <div className="p-4 md:p-8">
       <header className="mb-4">
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-center">
-          {!loading && templates.length > 0 ? `${templates.length} ` : ''}Templates de Automação de Workflow
+          {!loading && templates.length > 0
+            ? `${templates.length} `
+            : ''}Templates de Automação de Workflow
         </h1>
         <div className="max-w-xl mx-auto">
           <div className="relative">
@@ -315,56 +322,70 @@ export default function TemplatesPage() {
       <div className="mb-8 flex items-center justify-between min-h-[52px]">
         <AnimatePresence>
           {selectedTemplateIds.length > 0 && (
-             <motion.div
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               className="flex items-center gap-4 bg-secondary p-2 rounded-lg"
             >
               <div className="flex items-center gap-2">
-                 <Checkbox 
-                   id="select-all"
-                   checked={selectedTemplateIds.length === templatesToDisplay.length && templatesToDisplay.length > 0}
-                   onCheckedChange={toggleSelectAll}
-                 />
-                 <Label htmlFor="select-all" className="text-sm font-medium">
-                   {selectedTemplateIds.length} selecionado(s)
-                 </Label>
-               </div>
-               <AlertDialog>
-                 <AlertDialogTrigger asChild>
-                   <Button variant="destructive" size="sm">
-                     <Trash2 className="mr-2 h-4 w-4" />
-                     Excluir
-                   </Button>
-                 </AlertDialogTrigger>
-                 <AlertDialogContent>
-                   <AlertDialogHeader>
-                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                     <AlertDialogDescription>
-                       Esta ação não pode ser desfeita. Isso excluirá permanentemente os {selectedTemplateIds.length} templates selecionados.
-                     </AlertDialogDescription>
-                   </AlertDialogHeader>
-                   <AlertDialogFooter>
-                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                     <AlertDialogAction
-                       onClick={handleDeleteConfirm}
-                       disabled={isDeleting}
-                     >
-                       {isDeleting ? 'Excluindo...' : `Sim, Excluir ${selectedTemplateIds.length} Itens`}
-                     </AlertDialogAction>
-                   </AlertDialogFooter>
-                 </AlertDialogContent>
-               </AlertDialog>
-               <Button variant="ghost" size="icon" onClick={() => setSelectedTemplateIds([])} className="h-8 w-8">
-                 <X className="h-4 w-4" />
-               </Button>
+                <Checkbox
+                  id="select-all"
+                  checked={
+                    selectedTemplateIds.length === templatesToDisplay.length &&
+                    templatesToDisplay.length > 0
+                  }
+                  onCheckedChange={toggleSelectAll}
+                />
+                <Label htmlFor="select-all" className="text-sm font-medium">
+                  {selectedTemplateIds.length} selecionado(s)
+                </Label>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Excluir
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação não pode ser desfeita. Isso excluirá
+                      permanentemente os {selectedTemplateIds.length} templates
+                      selecionados.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteConfirm}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting
+                        ? 'Excluindo...'
+                        : `Sim, Excluir ${selectedTemplateIds.length} Itens`}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedTemplateIds([])}
+                className="h-8 w-8"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
-        
+
         {selectedTemplateIds.length === 0 && (
-          <h2 className="text-2xl font-semibold tracking-tight">Templates em Destaque</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Templates em Destaque
+          </h2>
         )}
 
         <Button onClick={() => setIsUploadDialogOpen(true)}>
@@ -373,22 +394,23 @@ export default function TemplatesPage() {
         </Button>
       </div>
 
-
       {loading ? (
         <div className="flex justify-center items-center col-span-full py-12">
           <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
           <p className="ml-4 text-muted-foreground">Carregando templates...</p>
         </div>
       ) : error ? (
-         <div className="text-center py-12 text-destructive flex flex-col items-center gap-4">
-               <AlertTriangle className="h-10 w-10" />
-              <p className="text-lg font-semibold">Ocorreu um erro</p>
-              <p>{error}</p>
-            </div>
+        <div className="text-center py-12 text-destructive flex flex-col items-center gap-4">
+          <AlertTriangle className="h-10 w-10" />
+          <p className="text-lg font-semibold">Ocorreu um erro</p>
+          <p>{error}</p>
+        </div>
       ) : templatesToDisplay.length === 0 ? (
         <div className="text-center col-span-full py-12">
           <p className="text-muted-foreground">
-            {searchQuery ? 'Nenhum template encontrado para sua busca.' : 'Nenhum template encontrado. Clique em "Fazer Upload" para adicionar o primeiro!'}
+            {searchQuery
+              ? 'Nenhum template encontrado para sua busca.'
+              : 'Nenhum template encontrado. Clique em "Fazer Upload" para adicionar o primeiro!'}
           </p>
         </div>
       ) : (
@@ -396,30 +418,44 @@ export default function TemplatesPage() {
           {templatesToDisplay.map((template) => (
             <Card
               key={template.id}
-              className={`flex flex-col hover:shadow-lg transition-shadow cursor-pointer bg-secondary/50 border-transparent hover:border-primary/50 ${selectedTemplateIds.includes(template.id) ? 'border-primary shadow-lg' : ''}`}
+              className={`flex flex-col hover:shadow-lg transition-shadow cursor-pointer bg-secondary/50 border-transparent hover:border-primary/50 ${
+                selectedTemplateIds.includes(template.id)
+                  ? 'border-primary shadow-lg'
+                  : ''
+              } ${template.status !== 'PROCESSED' ? 'opacity-60' : ''}`}
               onClick={(e) => handleTemplateClick(template, e)}
             >
               <CardContent className="p-4 flex flex-col h-full relative">
-                 <div data-role="selection-checkbox" className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedTemplateIds.includes(template.id)}
-                      onCheckedChange={() => toggleTemplateSelection(template.id)}
-                      aria-label={`Selecionar template ${template.name}`}
-                    />
-                 </div>
-                 <div className="flex items-center gap-2 mb-4">
-                    {template.platforms.slice(0, 5).map((platform) => {
-                      const Icon = getPlatformIcon(platform);
-                      return <Icon key={platform} className="h-5 w-5 text-muted-foreground" />;
-                    })}
-                 </div>
-                 <h3 className="font-semibold text-lg mb-2 flex-grow">{template.name}</h3>
+                <div
+                  data-role="selection-checkbox"
+                  className="absolute top-2 right-2 z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Checkbox
+                    checked={selectedTemplateIds.includes(template.id)}
+                    onCheckedChange={() => toggleTemplateSelection(template.id)}
+                    aria-label={`Selecionar template ${template.name}`}
+                  />
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  {(template.platforms || []).slice(0, 5).map((platform) => {
+                    const Icon = getPlatformIcon(platform);
+                    return (
+                      <Icon
+                        key={platform}
+                        className="h-5 w-5 text-muted-foreground"
+                      />
+                    );
+                  })}
+                </div>
+                <h3 className="font-semibold text-lg mb-2 flex-grow">
+                  {template.name || 'Processando...'}
+                </h3>
                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-auto">
-                   <Avatar className="h-6 w-6">
-                     <AvatarImage src={`https://placehold.co/32x32.png`} alt="Author" />
-                     <AvatarFallback>A</AvatarFallback>
-                   </Avatar>
-                   <span>N8N Community</span>
+                   <div className="flex items-center gap-1.5">
+                      {getStatusIcon(template.status)}
+                      <span className="capitalize">{template.status.toLowerCase()}</span>
+                   </div>
                  </div>
               </CardContent>
             </Card>
@@ -433,8 +469,7 @@ export default function TemplatesPage() {
           <DialogHeader>
             <DialogTitle>Upload de Workflow</DialogTitle>
             <DialogDescription>
-              Selecione um ou mais arquivos JSON de workflow do n8n para a IA processar e
-              adicionar à biblioteca.
+              Selecione um ou mais arquivos JSON. Eles serão salvos e processados em segundo plano.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUploadSubmit} className="space-y-6 py-4">
@@ -450,9 +485,7 @@ export default function TemplatesPage() {
                   </span>{' '}
                   ou arraste e solte
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Arquivos JSON
-                </p>
+                <p className="text-xs text-muted-foreground">Arquivos JSON</p>
                 <Input
                   id="workflow-files"
                   type="file"
@@ -464,14 +497,20 @@ export default function TemplatesPage() {
                   ref={uploadInputRef}
                 />
               </div>
-              {filesInQueue.length > 0 && (
-                 <div className="text-sm text-muted-foreground pt-2">
-                   {filesInQueue.length} arquivo(s) selecionado(s):{' '}
-                   <ul>
-                     {Array.from(filesInQueue).slice(0, 5).map(file => <li key={file.name}>- {file.name}</li>)}
-                     {filesInQueue.length > 5 && <li>...e mais {filesInQueue.length - 5}</li>}
-                   </ul>
-                 </div>
+              {filesToUpload.length > 0 && (
+                <div className="text-sm text-muted-foreground pt-2">
+                  {filesToUpload.length} arquivo(s) selecionado(s):{' '}
+                  <ul>
+                    {Array.from(filesToUpload)
+                      .slice(0, 5)
+                      .map((file) => (
+                        <li key={file.name}>- {file.name}</li>
+                      ))}
+                    {filesToUpload.length > 5 && (
+                      <li>...e mais {filesToUpload.length - 5}</li>
+                    )}
+                  </ul>
+                </div>
               )}
             </div>
             <div className="flex justify-end gap-2">
@@ -480,13 +519,18 @@ export default function TemplatesPage() {
                   Cancelar
                 </Button>
               </DialogClose>
-              <Button type="submit" disabled={uploadLoading || filesInQueue.length === 0}>
+              <Button
+                type="submit"
+                disabled={uploadLoading || filesToUpload.length === 0}
+              >
                 {uploadLoading ? (
                   <LoaderCircle className="mr-2 animate-spin" />
                 ) : (
                   <UploadCloud className="mr-2" />
                 )}
-                {uploadLoading ? 'Processando...' : `Enviar ${filesInQueue.length} Arquivo(s)`}
+                {uploadLoading
+                  ? 'Enviando...'
+                  : `Enviar ${filesToUpload.length} Arquivo(s)`}
               </Button>
             </div>
           </form>
@@ -511,88 +555,95 @@ export default function TemplatesPage() {
                 </DialogTitle>
               </DialogHeader>
               <div className="flex-grow overflow-y-auto pr-6 -mr-6">
-                  <DialogDescription className="pt-2 text-base">
-                    {viewingTemplate.description}
-                  </DialogDescription>
-                  <div className="py-4 space-y-4">
-                    <div className="flex items-start gap-8">
-                        <div>
-                          <h3 className="font-semibold mb-2">Plataformas</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {viewingTemplate.platforms.map((platform) => (
-                              <span
-                                key={platform}
-                                className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
-                              >
-                               {React.createElement(getPlatformIcon(platform), {className: "h-4 w-4"})}
-                                {platform}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                         <div className="flex-shrink-0">
-                            <h3 className="font-semibold mb-2">Nicho</h3>
-                             <span
-                                className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
-                              >
-                               <Briefcase className="h-4 w-4" />
-                                {viewingTemplate.niche}
-                              </span>
-                          </div>
-                         <div className="flex-shrink-0">
-                            <h3 className="font-semibold mb-2">Categoria</h3>
-                             <span
-                                className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
-                              >
-                               <Tag className="h-4 w-4" />
-                                {viewingTemplate.category}
-                              </span>
-                          </div>
+                <DialogDescription className="pt-2 text-base">
+                  {viewingTemplate.description}
+                </DialogDescription>
+                <div className="py-4 space-y-4">
+                  <div className="flex items-start gap-8">
+                    <div>
+                      <h3 className="font-semibold mb-2">Plataformas</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {viewingTemplate.platforms.map((platform) => (
+                          <span
+                            key={platform}
+                            className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2"
+                          >
+                            {React.createElement(getPlatformIcon(platform), {
+                              className: 'h-4 w-4',
+                            })}
+                            {platform}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="explanation">
-                        <AccordionTrigger>
-                          <FileText className="mr-2" />
-                          Explicação Técnica
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <ScrollArea className="h-72 w-full">
-                             <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap pr-4">
-                               {viewingTemplate.explanation}
-                             </div>
-                          </ScrollArea>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
+                    <div className="flex-shrink-0">
+                      <h3 className="font-semibold mb-2">Nicho</h3>
+                      <span className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2">
+                        <Briefcase className="h-4 w-4" />
+                        {viewingTemplate.niche}
+                      </span>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <h3 className="font-semibold mb-2">Categoria</h3>
+                      <span className="text-sm bg-secondary text-secondary-foreground px-3 py-1 rounded-full flex items-center gap-2">
+                        <Tag className="h-4 w-4" />
+                        {viewingTemplate.category}
+                      </span>
+                    </div>
                   </div>
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="explanation">
+                      <AccordionTrigger>
+                        <FileText className="mr-2" />
+                        Explicação Técnica
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <ScrollArea className="h-72 w-full">
+                          <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap pr-4">
+                            {viewingTemplate.explanation}
+                          </div>
+                        </ScrollArea>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
               </div>
               <DialogFooter className="pt-4 flex-shrink-0 sm:justify-between">
-                 <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                       <Button variant="destructive" onClick={() => setDeletingTemplateId(viewingTemplate.id)}>
-                        <Trash2 className="mr-2" />
-                        Excluir
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta ação não pode ser desfeita. Isso excluirá permanentemente o template
-                          da biblioteca.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setDeletingTemplateId(null)}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleDeleteConfirm}
-                          disabled={isDeleting}
-                        >
-                          {isDeleting ? 'Excluindo...' : 'Sim, Excluir'}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      onClick={() =>
+                        setDeletingTemplateId(viewingTemplate.id)
+                      }
+                    >
+                      <Trash2 className="mr-2" />
+                      Excluir
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. Isso excluirá
+                        permanentemente o template da biblioteca.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel
+                        onClick={() => setDeletingTemplateId(null)}
+                      >
+                        Cancelar
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteConfirm}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? 'Excluindo...' : 'Sim, Excluir'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"

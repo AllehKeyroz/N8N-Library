@@ -48,6 +48,7 @@ const analysisPrompt = ai.definePrompt({
         translatedWorkflowJson: true,
         originalWorkflowHash: true,
         translatedWorkflowHash: true,
+        status: true,
       }),
       translatedNodes: TranslatedNamesSchema,
       credentials: z
@@ -116,13 +117,6 @@ const processWorkflowFlow = ai.defineFlow(
     const nodeNamesToTranslate = workflow.nodes
       .map((node: any) => node.name)
       .filter((name: any) => typeof name === 'string' && name.trim() !== '');
-
-    const nodeNameToIdMap = new Map<string, string>();
-    workflow.nodes.forEach((node: any) => {
-        if (node.name) {
-            nodeNameToIdMap.set(node.name, node.id);
-        }
-    });
 
     const analysisOptions: {
       model?: any;
@@ -228,6 +222,7 @@ const processWorkflowFlow = ai.defineFlow(
 
     return {
       ...analysisResult,
+      status: 'PROCESSED',
       translatedWorkflowJson,
       originalWorkflowHash,
       translatedWorkflowHash,

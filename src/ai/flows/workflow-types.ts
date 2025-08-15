@@ -25,6 +25,7 @@ export const ProcessWorkflowOutputSchema = z.object({
   translatedWorkflowJson: z.string().describe('O workflow JSON completo com os nomes dos nós traduzidos para o português.'),
   originalWorkflowHash: z.string().describe('O hash SHA256 do JSON do workflow original.'),
   translatedWorkflowHash: z.string().describe('O hash SHA256 do JSON do workflow traduzido.'),
+  status: z.enum(['PENDING', 'PROCESSING', 'PROCESSED', 'FAILED']).describe('O status do processamento do workflow.'),
 });
 export type ProcessWorkflowOutput = z.infer<typeof ProcessWorkflowOutputSchema>;
 

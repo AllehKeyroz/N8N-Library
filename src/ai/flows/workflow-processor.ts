@@ -178,7 +178,10 @@ const processWorkflowFlow = ai.defineFlow(
         for (const sourceNodeName in originalConnections) {
             const translatedSource = translationMap.get(sourceNodeName) || sourceNodeName;
             const sourceOutputs = originalConnections[sourceNodeName];
-            updatedConnections[translatedSource] = {};
+            
+            if (!updatedConnections[translatedSource]) {
+                updatedConnections[translatedSource] = {};
+            }
 
             for (const outputName in sourceOutputs) {
                 const destinationGroups = sourceOutputs[outputName];

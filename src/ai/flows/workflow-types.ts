@@ -23,6 +23,8 @@ export const ProcessWorkflowOutputSchema = z.object({
   platforms: z.array(z.string()).describe('Uma lista das principais plataformas ou aplicativos que o workflow integra (ex: Notion, Google Sheets, Slack).'),
   explanation: z.string().describe('Uma explicação detalhada, passo a passo, de como o workflow funciona, para ser usada como documentação interna.'),
   translatedWorkflowJson: z.string().describe('O workflow JSON completo com os nomes dos nós traduzidos para o português.'),
+  originalWorkflowHash: z.string().describe('O hash SHA256 do JSON do workflow original.'),
+  translatedWorkflowHash: z.string().describe('O hash SHA256 do JSON do workflow traduzido.'),
 });
 export type ProcessWorkflowOutput = z.infer<typeof ProcessWorkflowOutputSchema>;
 

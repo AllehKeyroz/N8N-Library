@@ -16,6 +16,8 @@ import {
   ProcessWorkflowOutputSchema,
   CredentialInfoSchema,
 } from './workflow-types';
+import { createHash } from 'crypto';
+
 
 export async function processWorkflow(
   input: ProcessWorkflowInput
@@ -44,6 +46,8 @@ const analysisPrompt = ai.definePrompt({
     schema: z.object({
       analysis: ProcessWorkflowOutputSchema.omit({
         translatedWorkflowJson: true,
+        originalWorkflowHash: true,
+        translatedWorkflowHash: true,
       }),
       translatedNodes: TranslatedNamesSchema,
       credentials: z
@@ -88,8 +92,9 @@ const processWorkflowFlow = ai.defineFlow(
   },
   async (input) => {
     let workflow;
+    const originalJson = input.workflowJson;
     try {
-      const cleanedJson = input.workflowJson.trim().replace(/^\uFEFF/, '');
+      const cleanedJson = originalJson.trim().replace(/^\uFEFF/, '');
       workflow = JSON.parse(cleanedJson);
     } catch (error) {
       console.error('Invalid workflow JSON:', error);
@@ -114,9 +119,9 @@ const processWorkflowFlow = ai.defineFlow(
 
     const nodeNameToIdMap = new Map<string, string>();
     workflow.nodes.forEach((node: any) => {
-      if (node.name) {
-        nodeNameToIdMap.set(node.name, node.id);
-      }
+        if (node.name) {
+            nodeNameToIdMap.set(node.name, node.id);
+        }
     });
 
     const analysisOptions: {
@@ -135,7 +140,7 @@ const processWorkflowFlow = ai.defineFlow(
 
     const {output} = await analysisPrompt(
       {
-        workflowJson: input.workflowJson,
+        workflowJson: originalJson,
         categories: categories,
         nodeNames: nodeNamesToTranslate,
       },
@@ -168,32 +173,25 @@ const processWorkflowFlow = ai.defineFlow(
     
     // Translate connections
     if (workflow.connections && typeof workflow.connections === 'object') {
-      const originalConnections = JSON.parse(JSON.stringify(workflow.connections));
-      const updatedConnections: Record<string, any> = {};
+        const originalConnections = JSON.parse(JSON.stringify(workflow.connections));
+        const updatedConnections: Record<string, any> = {};
 
-      for (const sourceNodeName of Object.keys(originalConnections)) {
-        const translatedSource = translationMap.get(sourceNodeName) || sourceNodeName;
-        const sourceOutputs = originalConnections[sourceNodeName];
-        
-        updatedConnections[translatedSource] = {};
+        for (const sourceNodeName in originalConnections) {
+            const translatedSource = translationMap.get(sourceNodeName) || sourceNodeName;
+            const sourceOutputs = originalConnections[sourceNodeName];
+            updatedConnections[translatedSource] = {};
 
-        for (const outputName of Object.keys(sourceOutputs)) {
-          const destinationGroups = sourceOutputs[outputName];
-          if (Array.isArray(destinationGroups)) {
-             updatedConnections[translatedSource][outputName] = destinationGroups.map((destGroup: any) => {
-                if (Array.isArray(destGroup)) {
-                    return destGroup.map((dest: any) => {
-                       const translatedDestNode = translationMap.get(dest.node) || dest.node;
-                       return { ...dest, node: translatedDestNode };
-                    });
-                }
-                return destGroup;
-             });
-          }
+            for (const outputName in sourceOutputs) {
+                const destinationGroups = sourceOutputs[outputName];
+                updatedConnections[translatedSource][outputName] = destinationGroups.map((group: any) => ({
+                    ...group,
+                    node: translationMap.get(group.node) || group.node,
+                }));
+            }
         }
-      }
-      workflow.connections = updatedConnections;
+        workflow.connections = updatedConnections;
     }
+
 
     let minX = Infinity;
     let minY = Infinity;
@@ -225,9 +223,14 @@ const processWorkflowFlow = ai.defineFlow(
 
     const translatedWorkflowJson = JSON.stringify(workflow, null, 2);
 
+    const originalWorkflowHash = createHash('sha256').update(originalJson).digest('hex');
+    const translatedWorkflowHash = createHash('sha256').update(translatedWorkflowJson).digest('hex');
+
     return {
       ...analysisResult,
       translatedWorkflowJson,
+      originalWorkflowHash,
+      translatedWorkflowHash,
     };
   }
 );

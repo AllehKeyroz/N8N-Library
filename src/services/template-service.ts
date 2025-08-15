@@ -5,29 +5,41 @@ import { collection, addDoc, getDocs, serverTimestamp, query, orderBy, where, do
 import type { ProcessWorkflowOutput } from "@/ai/flows/workflow-types";
 import { createHash } from 'crypto';
 
-export type Template = Omit<ProcessWorkflowOutput, 'translatedWorkflowJson'> & {
+export type Template = Omit<ProcessWorkflowOutput, 'originalWorkflowHash' | 'translatedWorkflowHash'> & {
   id: string;
   createdAt: string; 
-  workflowHash: string;
-  workflowJson: string;
 };
 
-export async function saveTemplate(templateData: Omit<ProcessWorkflowOutput, 'translatedWorkflowJson'> & { workflowJson: string }): Promise<string> {
-  const { workflowJson, ...restData } = templateData;
-  const workflowHash = createHash('sha256').update(workflowJson).digest('hex');
+export async function saveTemplate(templateData: ProcessWorkflowOutput): Promise<string> {
+  const { translatedWorkflowJson, ...restData } = templateData;
 
   try {
-    const q = query(collection(db, "templates"), where("workflowHash", "==", workflowHash));
+    const q = query(
+        collection(db, "templates"), 
+        where("originalWorkflowHash", "==", templateData.originalWorkflowHash)
+    );
     const querySnapshot = await getDocs(q);
+
     if (!querySnapshot.empty) {
-      console.log("Duplicate template detected with hash:", workflowHash);
-      throw new Error("Este template de workflow já existe na biblioteca.");
+      console.log("Duplicate original template detected with hash:", templateData.originalWorkflowHash);
+      throw new Error("Este template de workflow (versão original) já existe na biblioteca.");
     }
+    
+    const qTranslated = query(
+        collection(db, "templates"), 
+        where("translatedWorkflowHash", "==", templateData.translatedWorkflowHash)
+    );
+    const querySnapshotTranslated = await getDocs(qTranslated);
+
+    if (!querySnapshotTranslated.empty) {
+      console.log("Duplicate translated template detected with hash:", templateData.translatedWorkflowHash);
+      throw new Error("Este template de workflow (versão traduzida) já existe na biblioteca.");
+    }
+
 
     const docRef = await addDoc(collection(db, "templates"), {
       ...restData,
-      workflowJson: workflowJson,
-      workflowHash: workflowHash,
+      translatedWorkflowJson, // Storing the translated JSON
       createdAt: serverTimestamp(),
     });
     return docRef.id;
@@ -52,12 +64,11 @@ export async function getTemplates(): Promise<Template[]> {
         name: data.name,
         description: data.description,
         category: data.category,
-        niche: data.niche || 'N/A', // Handle older documents that might not have niche
+        niche: data.niche || 'N/A',
         platforms: data.platforms,
         explanation: data.explanation,
         createdAt: createdAtTimestamp ? createdAtTimestamp.toDate().toISOString() : '',
-        workflowHash: data.workflowHash,
-        workflowJson: data.workflowJson,
+        translatedWorkflowJson: data.translatedWorkflowJson,
       } as Template;
     });
     return templates;

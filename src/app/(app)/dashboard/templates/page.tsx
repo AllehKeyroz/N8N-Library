@@ -22,8 +22,9 @@ import {
   Briefcase,
   X,
   Workflow,
+  AlertTriangle,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { getTemplates, Template, deleteTemplate } from '@/services/template-service';
 import { Button } from '@/components/ui/button';
 import {
@@ -73,8 +74,9 @@ export default function TemplatesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [uploadFiles, setUploadFiles] = useState<FileList | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [filesInQueue, setFilesInQueue] = useState<File[]>([]);
   const { toast } = useToast();
 
   const [viewingTemplate, setViewingTemplate] = useState<Template | null>(
@@ -106,6 +108,64 @@ export default function TemplatesPage() {
   useEffect(() => {
     loadTemplates();
   }, []);
+  
+  // Queue processing logic
+  useEffect(() => {
+    if (filesInQueue.length === 0 || uploadLoading) {
+      return;
+    }
+
+    setUploadLoading(true);
+    const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    const delay = apiKey ? 3000 : 10000; // 3 seconds with key, 10 seconds without
+
+    toast({
+        title: 'Processamento em Fila Iniciado',
+        description: `Processando ${filesInQueue.length} arquivo(s) com um intervalo de ${delay / 1000} segundos.`,
+        variant: 'default',
+    });
+
+    const processQueue = async () => {
+        for (const file of filesInQueue) {
+            try {
+                const fileContent = await file.text();
+                const aiResult = await processWorkflow({ workflowJson: fileContent, apiKey: apiKey || undefined });
+                await saveTemplate(aiResult);
+                toast({
+                    title: `Sucesso: "${file.name}"`,
+                    description: `O workflow "${aiResult.name}" foi salvo.`,
+                    variant: 'default',
+                });
+            } catch (error: any) {
+                console.error(`Error processing ${file.name}:`, error);
+                toast({
+                    title: `Erro em "${file.name}"`,
+                    description: error.message || 'Ocorreu um erro ao processar este arquivo.',
+                    variant: 'destructive',
+                });
+            }
+            // Wait for the specified delay before processing the next file
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        // After processing all files
+        setFilesInQueue([]);
+        setUploadLoading(false);
+        if (uploadInputRef.current) {
+            uploadInputRef.current.value = '';
+        }
+        await loadTemplates();
+        toast({
+            title: 'Processamento da Fila Concluído',
+            description: 'Todos os arquivos foram processados.',
+            variant: 'default',
+        });
+    };
+
+    processQueue();
+
+  }, [filesInQueue, uploadLoading, toast]);
+
 
   useEffect(() => {
     const lowercasedQuery = searchQuery.toLowerCase();
@@ -123,69 +183,16 @@ export default function TemplatesPage() {
   }, [searchQuery, templates]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setUploadFiles(event.target.files);
-  };
-  
-  const processFileWithRetry = async (file: File, maxRetries = 5, initialDelay = 10000, delayIncrement = 30000) => {
-    let attempt = 0;
-    let currentDelay = initialDelay;
-    const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY) || undefined;
-
-    while (attempt <= maxRetries) {
-      try {
-        const fileContent = await file.text();
-        const aiResult = await processWorkflow({ workflowJson: fileContent, apiKey });
-        const { translatedWorkflowJson, ...restOfAiResult } = aiResult;
-        
-        await saveTemplate({ ...restOfAiResult, workflowJson: translatedWorkflowJson });
-        
-        toast({
-          title: `Sucesso: "${file.name}"`,
-          description: `O workflow "${aiResult.name}" foi salvo.`,
-          variant: 'default',
-        });
-        
-        return; // Success, exit the loop
-      } catch (error: any) {
-        // Check if it's a rate limit error (429)
-        if (error.message && (error.message.includes('429') || error.message.toLowerCase().includes('rate limit'))) {
-          attempt++;
-          if (attempt <= maxRetries) {
-            toast({
-              title: `Limite de requisições atingido para "${file.name}"`,
-              description: `Tentando novamente em ${currentDelay / 1000} segundos... (tentativa ${attempt} de ${maxRetries})`,
-              variant: 'default',
-            });
-            await new Promise(resolve => setTimeout(resolve, currentDelay));
-            currentDelay += delayIncrement; // Increase delay for next attempt
-          } else {
-            console.error(`Error processing ${file.name} after ${maxRetries} retries:`, error);
-            toast({
-              title: `Erro Final em "${file.name}"`,
-              description: 'Não foi possível processar o arquivo após várias tentativas devido a limites de requisição.',
-              variant: 'destructive',
-            });
-          }
-        } else {
-          // It's a different error, fail immediately
-          console.error(`Error processing ${file.name}:`, error);
-          toast({
-            title: `Erro em "${file.name}"`,
-            description: error.message || 'Ocorreu um erro ao processar este arquivo.',
-            variant: 'destructive',
-          });
-          return; // Exit loop for non-retryable errors
-        }
-      }
+    if (event.target.files) {
+      setFilesInQueue(Array.from(event.target.files));
     }
   };
-
-
+  
   const handleUploadSubmit = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
-    if (!uploadFiles || uploadFiles.length === 0) {
+    if (filesInQueue.length === 0) {
       toast({
         title: 'Nenhum arquivo selecionado',
         description: 'Por favor, selecione um ou mais arquivos JSON.',
@@ -193,36 +200,8 @@ export default function TemplatesPage() {
       });
       return;
     }
-
-    const filesToProcess = Array.from(uploadFiles);
-    
-    // 1. Reset UI and close modal immediately
-    setUploadLoading(true);
-    setIsUploadDialogOpen(false);
-    toast({
-      title: 'Upload em Massa Iniciado',
-      description: `${filesToProcess.length} arquivo(s) na fila para processamento.`,
-      variant: 'default',
-    });
-
-    // 2. Start processing loop without blocking UI
-    (async () => {
-      for (const file of filesToProcess) {
-        await processFileWithRetry(file);
-        await loadTemplates(); // Refresh list after each attempt (success or final failure)
-      }
-
-      // 3. Reset the form state after loop finishes
-      setUploadLoading(false);
-      setUploadFiles(null);
-       toast({
-        title: 'Processamento em Massa Concluído',
-        description: 'Todos os arquivos foram processados.',
-        variant: 'default',
-      });
-    })();
+    setIsUploadDialogOpen(false); // Close dialog and let useEffect handle the queue
   };
-
 
   const handleTemplateClick = (template: Template, e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -234,10 +213,19 @@ export default function TemplatesPage() {
   };
 
   const handleDownload = (template: Template) => {
-    let jsonString = template.workflowJson;
+    if (!template.translatedWorkflowJson) {
+         toast({
+            title: 'Erro no Download',
+            description: `O JSON traduzido para "${template.name}" não foi encontrado.`,
+            variant: 'destructive',
+        });
+        return;
+    }
+    
+    let jsonString = template.translatedWorkflowJson;
     try {
       // Try to parse and re-stringify to format it nicely
-      jsonString = JSON.stringify(JSON.parse(template.workflowJson), null, 2);
+      jsonString = JSON.stringify(JSON.parse(jsonString), null, 2);
     } catch (e) {
       console.warn("Could not parse and re-stringify the workflow JSON. Using original string.", e);
       // If it fails, use the raw string from the DB.
@@ -246,6 +234,7 @@ export default function TemplatesPage() {
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    a.href = url;
     a.download = `${template.name.replace(/\s+/g, '_').toLowerCase()}.json`;
     document.body.appendChild(a);
     a.click();
@@ -391,9 +380,11 @@ export default function TemplatesPage() {
           <p className="ml-4 text-muted-foreground">Carregando templates...</p>
         </div>
       ) : error ? (
-        <div className="text-center col-span-full py-12 text-destructive">
-          <p>{error}</p>
-        </div>
+         <div className="text-center py-12 text-destructive flex flex-col items-center gap-4">
+               <AlertTriangle className="h-10 w-10" />
+              <p className="text-lg font-semibold">Ocorreu um erro</p>
+              <p>{error}</p>
+            </div>
       ) : templatesToDisplay.length === 0 ? (
         <div className="text-center col-span-full py-12">
           <p className="text-muted-foreground">
@@ -470,14 +461,15 @@ export default function TemplatesPage() {
                   multiple
                   onChange={handleFileChange}
                   disabled={uploadLoading}
+                  ref={uploadInputRef}
                 />
               </div>
-              {uploadFiles && uploadFiles.length > 0 && (
+              {filesInQueue.length > 0 && (
                  <div className="text-sm text-muted-foreground pt-2">
-                   {uploadFiles.length} arquivo(s) selecionado(s):{' '}
+                   {filesInQueue.length} arquivo(s) selecionado(s):{' '}
                    <ul>
-                     {Array.from(uploadFiles).slice(0, 5).map(file => <li key={file.name}>- {file.name}</li>)}
-                     {uploadFiles.length > 5 && <li>...e mais {uploadFiles.length - 5}</li>}
+                     {Array.from(filesInQueue).slice(0, 5).map(file => <li key={file.name}>- {file.name}</li>)}
+                     {filesInQueue.length > 5 && <li>...e mais {filesInQueue.length - 5}</li>}
                    </ul>
                  </div>
               )}
@@ -488,13 +480,13 @@ export default function TemplatesPage() {
                   Cancelar
                 </Button>
               </DialogClose>
-              <Button type="submit" disabled={uploadLoading || !uploadFiles}>
+              <Button type="submit" disabled={uploadLoading || filesInQueue.length === 0}>
                 {uploadLoading ? (
                   <LoaderCircle className="mr-2 animate-spin" />
                 ) : (
                   <UploadCloud className="mr-2" />
                 )}
-                {uploadLoading ? 'Processando...' : `Enviar ${uploadFiles?.length || 0} Arquivo(s)`}
+                {uploadLoading ? 'Processando...' : `Enviar ${filesInQueue.length} Arquivo(s)`}
               </Button>
             </div>
           </form>

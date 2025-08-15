@@ -67,6 +67,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 const API_KEY_STORAGE_KEY = 'google-ai-api-key';
 
+// Define a sort order for the statuses
+const statusOrder: { [key in Template['status']]: number } = {
+  PROCESSED: 0,
+  PENDING: 1,
+  PROCESSING: 2,
+  FAILED: 3,
+};
+
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,11 +99,17 @@ export default function TemplatesPage() {
   const loadTemplates = useCallback(async () => {
     try {
       // Don't set loading to true on polls, only on initial load
-      if (loading) { 
+      if (templates.length === 0) { 
         setLoading(true);
       }
       const fetchedTemplates = await getTemplates();
-      setTemplates(fetchedTemplates);
+      // Sort templates by status order
+      const sortedTemplates = fetchedTemplates.sort((a, b) => {
+        const orderA = statusOrder[a.status] ?? 99;
+        const orderB = statusOrder[b.status] ?? 99;
+        return orderA - orderB;
+      });
+      setTemplates(sortedTemplates);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Falha ao carregar templates.');
@@ -105,7 +119,7 @@ export default function TemplatesPage() {
         setLoading(false);
       }
     }
-  }, [loading]);
+  }, [templates.length, loading]);
 
   useEffect(() => {
     loadTemplates();
@@ -130,7 +144,7 @@ export default function TemplatesPage() {
         (description?.toLowerCase() ?? '').includes(lowercasedQuery) ||
         (category?.toLowerCase() ?? '').includes(lowercasedQuery) ||
         (niche?.toLowerCase() ?? '').includes(lowercasedQuery) ||
-        platforms.some((p) => p.toLowerCase().includes(lowercasedQuery))
+        (platforms || []).some((p) => p.toLowerCase().includes(lowercasedQuery))
       );
     });
     setFilteredTemplates(filtered);
@@ -257,7 +271,7 @@ export default function TemplatesPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${template.name.replace(/\s+/g, '_').toLowerCase()}.json`;
+    a.download = `${(template.name || 'workflow').replace(/\s+/g, '_').toLowerCase()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -67,22 +67,22 @@ export default function DashboardLayout({
           </SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <Link href="/dashboard/templates" passHref legacyBehavior>
+              <Link href="/dashboard/templates">
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/templates')}>
-                  <a>
+                  <span>
                     <FileText />
                     Templates
-                  </a>
+                  </span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-               <Link href="/dashboard/credentials" passHref legacyBehavior>
+               <Link href="/dashboard/credentials">
                 <SidebarMenuButton asChild isActive={pathname.startsWith('/dashboard/credentials')}>
-                  <a>
+                  <span>
                     <KeyRound />
                     Credenciais
-                  </a>
+                  </span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

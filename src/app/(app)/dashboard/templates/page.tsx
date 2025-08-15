@@ -103,6 +103,8 @@ export default function TemplatesPage() {
   const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([]);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
 
+  const isProcessingRef = useRef(false);
+
   const loadTemplates = useCallback(async () => {
     try {
       setLoading(true);
@@ -150,6 +152,20 @@ export default function TemplatesPage() {
       setUploadProgress(0);
     }
   };
+  
+  const handleCancelUpload = () => {
+      isProcessingRef.current = false; // Signal to stop processing
+      setIsUploadDialogOpen(false);
+      setUploadLoading(false);
+      setFilesToUpload([]);
+      setUploadProgress(0);
+      setUploadStatus('');
+       toast({
+        title: 'Upload Cancelado',
+        description: 'O processo de envio de templates foi interrompido.',
+        variant: 'default',
+      });
+  };
 
   const handleUploadSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -162,6 +178,7 @@ export default function TemplatesPage() {
       return;
     }
     setUploadLoading(true);
+    isProcessingRef.current = true;
 
     const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
     const processDelay = apiKey ? 3000 : 10000;
@@ -170,6 +187,8 @@ export default function TemplatesPage() {
     let errorCount = 0;
 
     for (let i = 0; i < filesToUpload.length; i++) {
+        if (!isProcessingRef.current) break; // Stop if cancelled
+
         const file = filesToUpload[i];
         setUploadStatus(`Processando ${i + 1} de ${filesToUpload.length}: ${file.name}...`);
         
@@ -202,25 +221,30 @@ export default function TemplatesPage() {
             await delay(processDelay);
         }
     }
-
-    setUploadStatus(
-        `Concluído! ${successCount} templates importados, ${errorCount} falharam.`
-    );
     
-    // Reset state after a short delay to allow user to see the final message
-    setTimeout(() => {
-        setUploadLoading(false);
-        setFilesToUpload([]);
-        setUploadProgress(0);
-        setUploadStatus('');
-        if (uploadInputRef.current) {
-            uploadInputRef.current.value = '';
-        }
-        // Only close if there were no errors
-        if (errorCount === 0) {
-           setIsUploadDialogOpen(false);
-        }
-    }, 4000);
+    if (isProcessingRef.current) {
+        setUploadStatus(
+            `Concluído! ${successCount} templates importados, ${errorCount} falharam.`
+        );
+        
+        // Reset state after a short delay to allow user to see the final message
+        setTimeout(() => {
+            if (isProcessingRef.current) { // Check again in case it was cancelled during timeout
+                setUploadLoading(false);
+                setFilesToUpload([]);
+                setUploadProgress(0);
+                setUploadStatus('');
+                if (uploadInputRef.current) {
+                    uploadInputRef.current.value = '';
+                }
+                // Only close if there were no errors
+                if (errorCount === 0) {
+                   setIsUploadDialogOpen(false);
+                }
+            }
+        }, 4000);
+    }
+     isProcessingRef.current = false;
   };
 
   const handleTemplateClick = (
@@ -510,7 +534,12 @@ export default function TemplatesPage() {
       )}
 
       {/* Upload Dialog */}
-      <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+      <Dialog open={isUploadDialogOpen} onOpenChange={(isOpen) => {
+          if (!isOpen && uploadLoading) {
+            handleCancelUpload(); // Allow closing via ESC or overlay click to trigger cancellation
+          }
+          setIsUploadDialogOpen(isOpen);
+      }}>
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
             <DialogTitle>Upload de Workflow</DialogTitle>
@@ -568,11 +597,9 @@ export default function TemplatesPage() {
                )}
             </div>
             <div className="flex justify-end gap-2">
-              <DialogClose asChild>
-                <Button type="button" variant="outline" disabled={uploadLoading}>
-                  Cancelar
+                <Button type="button" variant="outline" onClick={handleCancelUpload}>
+                  {uploadLoading ? "Cancelar Envio" : "Fechar"}
                 </Button>
-              </DialogClose>
               <Button
                 type="submit"
                 disabled={uploadLoading || filesToUpload.length === 0}

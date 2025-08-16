@@ -127,13 +127,9 @@ const processWorkflowFlow = ai.defineFlow(
       config?: {apiKey?: string};
     } = {};
 
+    analysisOptions.model = googleAI.model('gemini-1.5-flash');
     if (input.apiKey) {
-      analysisOptions.model = googleAI.model(
-        'gemini-1.5-pro-latest'
-      );
       analysisOptions.config = {apiKey: input.apiKey};
-    } else {
-      analysisOptions.model = googleAI.model('gemini-1.5-flash');
     }
 
     const {output} = await analysisPrompt(

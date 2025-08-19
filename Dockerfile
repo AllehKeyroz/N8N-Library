@@ -1,36 +1,38 @@
-# 1. Install dependencies
-FROM node:20-slim AS deps
-WORKDIR /app
+# Dockerfile otimizado para um projeto Next.js no Easypanel
 
+# 1. Estágio de Dependências (Dependencies)
+# Instala as dependências primeiro para aproveitar o cache do Docker.
+FROM node:20-alpine AS dependencies
+WORKDIR /app
 COPY package.json package-lock.json* ./
-# Use --omit=dev to not install devDependencies
-RUN npm ci --omit=dev
+RUN npm install
 
-# 2. Build the app
-FROM node:20-slim AS builder
+# 2. Estágio de Build (Builder)
+# Constrói a aplicação Next.js.
+FROM node:20-alpine AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
-
-# Don't run postinstall scripts
-ENV npm_config_bignore_prepublish=true
 RUN npm run build
 
-# 3. Production image
-FROM node:20-slim AS runner
+# 3. Estágio de Produção (Runner)
+# Imagem final, otimizada e com apenas o necessário para rodar.
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED 1
 
+# Copia os artefatos da build do estágio 'builder'
 COPY --from=builder /app/next.config.ts ./
-COPY --from=builder /app/package.json ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/package.json ./package.json
 
+# Instala apenas as dependências de produção
+RUN npm install --omit=dev --ignore-scripts
 
-# Expose the port the app runs on
 EXPOSE 3000
 
-# Start the app
-CMD ["npm", "start"]
+# Define o usuário para 'nextjs' que o Next.js cria por padrão
+USER nextjs
+
+CMD ["npm", "start", "--", "-p", "3000"]

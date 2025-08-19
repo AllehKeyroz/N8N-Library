@@ -1,38 +1,58 @@
-# Dockerfile otimizado para um projeto Next.js no Easypanel
-
-# 1. Estágio de Dependências (Dependencies)
-# Instala as dependências primeiro para aproveitar o cache do Docker.
-FROM node:20-alpine AS dependencies
+# 1. Estágio de Dependências
+FROM node:20-slim AS deps
 WORKDIR /app
+
+# Copia os arquivos de definição de dependências
 COPY package.json package-lock.json* ./
-RUN npm install
 
-# 2. Estágio de Build (Builder)
-# Constrói a aplicação Next.js.
-FROM node:20-alpine AS builder
+# Instala todas as dependências (incluindo devDependencies)
+RUN echo "--- Instalando todas as dependências ---" && \
+    npm install
+
+# 2. Estágio de Build
+FROM node:20-slim AS builder
 WORKDIR /app
-COPY --from=dependencies /app/node_modules ./node_modules
+
+# Copia as dependências pré-instaladas do estágio 'deps'
+COPY --from=deps /app/node_modules ./node_modules
+# Copia o restante do código da aplicação
 COPY . .
-RUN npm run build
+
+# Constrói a aplicação Next.js
+RUN echo "--- Executando o build da aplicação ---" && \
+    npm run build
 
 # 3. Estágio de Produção (Runner)
-# Imagem final, otimizada e com apenas o necessário para rodar.
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
+# Define o ambiente para produção
 ENV NODE_ENV=production
 
-# Copia os artefatos da build do estágio 'builder'
-COPY --from=builder /app/next.config.ts ./
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/package.json ./package.json
+# Cria um usuário não-root para segurança
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copia os arquivos de definição de dependências para instalar apenas as de produção
+COPY package.json package-lock.json* ./
 
 # Instala apenas as dependências de produção
-RUN npm install --omit=dev --ignore-scripts
+RUN echo "--- Instalando dependências de produção ---" && \
+    npm install --omit=dev --ignore-scripts
 
-EXPOSE 3000
+# Copia os artefatos de build do estágio 'builder'
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/next.config.ts ./
+# A pasta 'public' não é usada, então não será copiada.
 
-# Define o usuário para 'nextjs' que o Next.js cria por padrão
+# Muda a propriedade dos arquivos para o usuário não-root
+RUN chown -R nextjs:nodejs /app/.next
+
+# Define o usuário para executar a aplicação
 USER nextjs
 
-CMD ["npm", "start", "--", "-p", "3000"]
+# Expõe a porta que a aplicação vai rodar
+EXPOSE 3000
+
+# Comando para iniciar a aplicação
+CMD ["npm", "run", "start"]
